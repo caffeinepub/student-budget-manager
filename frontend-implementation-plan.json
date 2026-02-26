@@ -1,183 +1,22 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Add Wallet-Based Payment System - Frontend",
+  "title": "Remove Gmail/Google login feature",
   "requirements": [
     {
-      "id": "REQ-28",
-      "summary": "Add React Query hooks for all wallet backend functions",
+      "id": "REQ-36",
+      "summary": "Remove all Gmail/Google login UI elements, imports, handlers, and state from LoginPage.tsx while preserving Internet Identity authentication",
       "acceptanceCriteria": [
-        "Each hook wraps the corresponding backend actor call using TanStack Query useQuery or useMutation.",
-        "Mutation hooks invalidate wallet-related queries on success.",
-        "Hooks follow the same patterns as existing hooks in useQueries.ts."
+        "The login page renders with no Gmail or Google login button.",
+        "No Google OAuth imports, SDK scripts, or handler functions remain in LoginPage.tsx or any other frontend file.",
+        "Internet Identity login continues to work correctly.",
+        "No console errors related to missing Google libraries or configurations."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useQueries.ts",
+          "path": "frontend/src/components/LoginPage.tsx",
           "operation": "modify",
-          "description": "Add wallet-related hooks: useGetWalletProfile (query), useGetWalletBalance (query), useGetWalletTransactions (query), useGetKYCStatus (query), useCreateWallet (mutation), useAddFundsToWallet (mutation), useDeductFromWallet (mutation), useTransferToLockerFromWallet (mutation), useSetWalletPIN (mutation), useVerifyWalletPIN (mutation), useSubmitBasicKYC (mutation), useSubmitFullKYC (mutation). All mutation hooks invalidate ['walletProfile', 'walletBalance', 'walletTransactions', 'kycStatus'] query keys on success. Follow existing patterns from income/expense hooks. Use the authorization component's access control patterns for authenticated calls."
-        }
-      ]
-    },
-    {
-      "id": "REQ-29",
-      "summary": "Create Wallet screen with balance display, quick actions, transaction forms, and history",
-      "acceptanceCriteria": [
-        "Wallet balance is displayed prominently and updates after every add/pay/transfer action.",
-        "Add Money form calls addFundsToWallet and shows a success toast on completion.",
-        "Pay/Send form calls deductFromWallet and shows an error toast if balance is insufficient.",
-        "Transfer to Locker form calls transferToLockerFromWallet.",
-        "Transaction history is grouped by date and renders credit, debit, and locker-transfer entries with distinct colour-coded icons.",
-        "Screen is fully usable within a 430px mobile viewport."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "create",
-          "description": "Create Wallet screen component with: (1) prominent gradient balance card at top showing INR-formatted wallet balance with 'Top Up' button, (2) horizontal quick-action buttons row (Add Money, Pay/Send, Transfer to Locker, KYC), (3) collapsible Add Money section with amount input (bigint) and source label field calling useAddFundsToWallet, (4) collapsible Pay/Send section with amount and recipient label inputs calling useDeductFromWallet, (5) collapsible Transfer to Locker section with amount input calling useTransferToLockerFromWallet, (6) scrollable transaction history using dateGrouping utility to group by date, each entry showing INR amount, type badge (Credit/Debit/Locker with color-coded icons), label, and formatted timestamp. Use useToast for success/error notifications. Fetch balance and transactions using wallet hooks from REQ-28. Must be mobile-responsive (430px viewport). Use BalanceCard component pattern for the balance display. Guard all actions behind authentication check using the authorization component."
-        }
-      ]
-    },
-    {
-      "id": "REQ-30",
-      "summary": "Create KYC flow with status badge and Basic/Full KYC forms",
-      "acceptanceCriteria": [
-        "KYC status badge reflects the current backend status on load.",
-        "Basic KYC form validates all fields before submission and shows a success toast.",
-        "Full KYC form is only accessible after Basic KYC is completed.",
-        "After each successful KYC submission the status badge updates immediately."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/KYCFlow.tsx",
-          "operation": "create",
-          "description": "Create KYCFlow component with: KYC status badge showing current status (Not Verified/Basic KYC/Full KYC) using useGetKYCStatus hook, 'Complete Basic KYC' form with fields for full name, date of birth (date input), phone number (text input), and Aadhaar last 4 digits (text input with maxLength 4) calling useSubmitBasicKYC mutation, 'Upgrade to Full KYC' form (only shown when status is 'basic') with address (textarea) and photo ID reference (text) fields calling useSubmitFullKYC mutation. Both forms validate required fields before submission. Show success toasts on completion. Include a note about transaction limits for unverified/basic KYC users. Use authorization component patterns for authenticated submissions."
-        },
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Import and render KYCFlow component inside the Wallet screen, triggered by the KYC quick-action button. Show KYCFlow in a collapsible section or modal overlay. Ensure KYC status badge is visible on the Wallet screen header."
-        }
-      ]
-    },
-    {
-      "id": "REQ-31",
-      "summary": "Create Wallet PIN setup and verification flow",
-      "acceptanceCriteria": [
-        "PIN setup screen appears when getWalletProfile returns isPINSet = false.",
-        "PIN entry screen gates all wallet actions until the correct PIN is verified via verifyWalletPIN.",
-        "Incorrect PIN shows an inline error message.",
-        "PIN pad UI has 10 digit buttons and a backspace button, styled for mobile."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/PINPad.tsx",
-          "operation": "create",
-          "description": "Create reusable PINPad component with 10 digit buttons (0-9) arranged in a 3x4 grid, backspace button, and a masked PIN display (showing dots). Component accepts onComplete callback triggered when 4 digits are entered. Styled for mobile with large touch targets. Include clear/reset functionality."
-        },
-        {
-          "path": "frontend/src/components/WalletPINSetup.tsx",
-          "operation": "create",
-          "description": "Create WalletPINSetup component that renders PINPad twice for PIN confirmation flow: (1) initial PIN entry, (2) confirm PIN entry. Validates that both match before calling useSetWalletPIN mutation. Shows error message if PINs don't match. Includes explanatory text about PIN security."
-        },
-        {
-          "path": "frontend/src/components/WalletPINVerify.tsx",
-          "operation": "create",
-          "description": "Create WalletPINVerify component that renders PINPad and calls useVerifyWalletPIN mutation when 4 digits are entered. Shows inline error message for incorrect PIN. Includes 'Forgot PIN' notice explaining re-onboarding is required. On successful verification, calls a parent onVerified callback to unlock wallet access."
-        },
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Wrap Wallet content with PIN gate logic: fetch wallet profile using useGetWalletProfile hook on mount. If hasPin is false, render WalletPINSetup component. If hasPin is true and user not verified in current session (use React state), render WalletPINVerify component. Only show wallet balance and actions after PIN is verified. Store verification status in component state (not persisted across page reloads for security)."
-        }
-      ]
-    },
-    {
-      "id": "REQ-32",
-      "summary": "Add Wallet tab to bottom navigation and register /wallet route",
-      "acceptanceCriteria": [
-        "Bottom nav renders six tabs; Wallet tab is visible and navigates to /wallet.",
-        "Active tab highlight applies correctly to the Wallet tab when on /wallet.",
-        "All other five tabs continue to work as before."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/BottomNavigation.tsx",
-          "operation": "modify",
-          "description": "Add sixth navigation item for Wallet with wallet icon (use Lucide Wallet icon), label 'Wallet', and href '/wallet'. Update navigation items array to include the new tab. Ensure active state highlighting works for /wallet route using pathname matching. Keep existing five tabs (Home, Expenses, Goals, Invest, Calc) unchanged."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Register /wallet route in TanStack Router configuration pointing to Wallet component. Apply same authentication and profile guards as dashboard route (check isAuthenticated and userProfile presence). Import Wallet component from components/Wallet.tsx."
-        }
-      ]
-    },
-    {
-      "id": "REQ-33",
-      "summary": "Update Dashboard to show Wallet balance card and 'Go to Wallet' quick action",
-      "acceptanceCriteria": [
-        "Wallet balance card is shown on the Dashboard and reflects the current wallet balance from the backend.",
-        "Go to Wallet quick-action button navigates to /wallet.",
-        "Existing Spending, Saving, Investment cards and other quick-action buttons are unaffected."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/Dashboard.tsx",
-          "operation": "modify",
-          "description": "Add a fourth BalanceCard for Wallet balance alongside Spending, Saving, and Investment cards. Fetch wallet balance using useGetWalletBalance hook from REQ-28 and format as INR. Add 'Go to Wallet' button in the quick-actions section that navigates to /wallet route. Handle loading and error states for wallet balance query. Position wallet card prominently in the balance cards grid."
-        }
-      ]
-    },
-    {
-      "id": "REQ-34",
-      "summary": "Create Admin Panel screen with user wallet summaries and system stats",
-      "acceptanceCriteria": [
-        "Admin Panel screen renders a table of users with principal, wallet balance, and KYC status columns.",
-        "System stats (total users, total balance, KYC counts) are displayed as summary cards.",
-        "/admin route is registered in App.tsx but is not linked from the bottom navigation bar."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Add useGetAllWalletSummaries query hook that calls the getAllWalletSummaries backend function. Returns tuple of [WalletSummary[], SystemStats]. Hook should handle authorization errors gracefully (backend will trap for non-admin callers). Use the authorization component's admin check patterns."
-        },
-        {
-          "path": "frontend/src/components/AdminPanel.tsx",
-          "operation": "create",
-          "description": "Create AdminPanel screen component that: (1) fetches data using useGetAllWalletSummaries hook from useQueries.ts, (2) displays system stats summary cards at top showing totalUsers, totalBalance (INR-formatted), basicKycCount, fullKycCount, (3) renders a table of all WalletSummary entries with columns for principal (truncated display), wallet balance (INR), KYC status badge, and transaction count. Handle loading state with skeletons. Show error message if unauthorized (non-admin). Use authorization component's admin verification patterns. Style for desktop and mobile viewports."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Register /admin route in TanStack Router configuration pointing to AdminPanel component. Apply authentication guard (same as dashboard). Import AdminPanel component. Do not add this route to BottomNavigation - it remains a hidden admin-only route."
-        }
-      ]
-    },
-    {
-      "id": "REQ-35",
-      "summary": "Display legal and compliance notice on Wallet and KYC screens",
-      "acceptanceCriteria": [
-        "Compliance notice card is visible on both the Wallet screen and the KYC flow.",
-        "Card is collapsible (collapsed by default) so it does not obstruct primary actions.",
-        "Text covers PPI licensing, Aadhaar data handling, and age requirement points."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/ComplianceNotice.tsx",
-          "operation": "create",
-          "description": "Create reusable ComplianceNotice component rendering a collapsible info card (collapsed by default) with student-friendly legal disclaimer. Content includes: (1) note that this is a simulated in-app wallet for educational use only, (2) explanation that real money transfers in India require RBI-regulated PPI licensing, (3) assurance that Aadhaar data is stored only on-device/in-app and not shared with third parties, (4) age requirement notice (18+ or guardian consent for full KYC). Use an info icon and expandable accordion pattern. Style to be unobtrusive but accessible."
-        },
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Import and render ComplianceNotice component at the bottom of the Wallet screen, below transaction history."
-        },
-        {
-          "path": "frontend/src/components/KYCFlow.tsx",
-          "operation": "modify",
-          "description": "Import and render ComplianceNotice component at the top of the KYCFlow component, before the status badge and forms."
+          "description": "Remove all Gmail/Google login functionality including: any Google OAuth imports or SDK references, Google login button/UI elements, Google authentication state variables, Google authentication handler functions, and any conditional rendering logic for Google sign-in. Retain all Internet Identity login functionality, the useInternetIdentity hook, the existing page layout, feature highlights, and the Internet Identity login button. Ensure no remnants of Google authentication remain in the component."
         }
       ]
     }

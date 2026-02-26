@@ -9,11 +9,11 @@ import Array "mo:core/Array";
 import Nat "mo:core/Nat";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
+
 import Iter "mo:core/Iter";
 
 // Apply migration on upgrade
-(with migration = Migration.run)
+
 actor {
   // ── Access Control ─────────────────────────────────────
   let accessControlState = AccessControl.initState();

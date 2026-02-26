@@ -1,242 +1,36 @@
 {
   "kind": "build_request",
-  "title": "Add Wallet-Based Payment System",
-  "projectName": "Student Budget Manager",
+  "title": "Remove Gmail/Google login feature",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-25",
-      "text": "Extend the backend Motoko actor to add wallet data structures and stable storage per user: wallet balance (Nat), a wallet PIN (hashed Text), KYC status (variant: #none, #basic, #full), KYC details record (name, date of birth, phone, aadhaar last 4 digits for basic; full adds address and photo ID reference), and a wallet transaction log (array of records with id, amount, type variant (#credit, #debit, #lockerTransfer), label, note, timestamp).",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "User wallet creation",
-          "Transaction history",
-          "KYC system (basic & full)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Wallet balance, PIN, KYC status, KYC details, and transaction history fields are present in the per-user profile stable storage.",
-        "Wallet is initialised with balance 0, PIN empty, and KYC status #none when a new profile is created.",
-        "Existing non-wallet profile fields (income, expenses, goals, locker) are unaffected."
-      ]
-    },
-    {
-      "id": "REQ-26",
-      "text": "Implement backend update functions: createWallet (initialises wallet fields if not already created), addFundsToWallet (amount: Nat, label: Text) increments balance and appends a #credit transaction, deductFromWallet (amount: Nat, label: Text) checks sufficient balance then decrements and appends a #debit transaction, transferToLockerFromWallet (amount: Nat) moves funds from wallet to savings locker and records a #lockerTransfer transaction, setWalletPIN (pin: Text) stores a hashed PIN, verifyWalletPIN (pin: Text) returns Bool, submitBasicKYC (name, dob, phone, aadhaarLast4: Text) updates KYC record and sets status to #basic, submitFullKYC (address, photoIdRef: Text) updates record and sets status to #full.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Add money to wallet",
-          "User can pay inside the app using wallet balance",
-          "KYC system (basic & full)",
-          "Security (PIN, OTP, encryption)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "addFundsToWallet correctly increments wallet balance and records a credit transaction.",
-        "deductFromWallet returns an error if balance is insufficient and does not mutate state.",
-        "transferToLockerFromWallet deducts from wallet and credits the digital locker savings balance.",
-        "setWalletPIN stores a non-plaintext representation; verifyWalletPIN returns true only for matching PIN.",
-        "submitBasicKYC and submitFullKYC update status fields and return ok."
-      ]
-    },
-    {
-      "id": "REQ-27",
-      "text": "Implement backend query functions: getWalletBalance returns the caller's current wallet balance as Nat, getWalletTransactions returns the full transaction log array for the caller, getKYCStatus returns the caller's current KYC status variant, getWalletProfile returns a combined record of balance, KYC status, and whether a PIN is set.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Wallet balance display",
-          "Transaction history",
-          "KYC system"
-        ]
-      },
-      "acceptanceCriteria": [
-        "getWalletBalance returns 0 for a new wallet and the correct balance after credits/debits.",
-        "getWalletTransactions returns records in reverse chronological order.",
-        "getKYCStatus returns the correct variant reflecting current KYC completion.",
-        "All queries are caller-scoped and cannot read another user's wallet data."
-      ]
-    },
-    {
-      "id": "REQ-28",
-      "text": "Add corresponding React Query hooks in frontend/src/hooks/useQueries.ts for all new wallet backend functions: useGetWalletProfile, useGetWalletBalance, useGetWalletTransactions, useGetKYCStatus, useCreateWallet, useAddFundsToWallet, useDeductFromWallet, useTransferToLockerFromWallet, useSetWalletPIN, useVerifyWalletPIN, useSubmitBasicKYC, useSubmitFullKYC.",
+      "id": "REQ-36",
+      "text": "Remove any Gmail/Google login button, option, or reference from the login page (frontend/src/components/LoginPage.tsx). The only authentication method available must be Internet Identity. Delete any Google-related imports, state variables, handlers, and UI elements. The Internet Identity login button and all existing page content must remain untouched.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Each hook wraps the corresponding backend actor call using TanStack Query useQuery or useMutation.",
-        "Mutation hooks invalidate wallet-related queries on success.",
-        "Hooks follow the same patterns as existing hooks in useQueries.ts."
-      ]
-    },
-    {
-      "id": "REQ-29",
-      "text": "Create a new Wallet screen component at frontend/src/components/Wallet.tsx. The screen must include: (1) A prominent gradient balance card at the top showing the wallet balance in INR with a 'Top Up' / 'Add Money' button. (2) A horizontal row of quick-action buttons: Add Money, Pay / Send, Transfer to Locker, and KYC. (3) An 'Add Money' collapsible section with amount input and a source label field (e.g., Cash, Card, UPI) that calls addFundsToWallet on submit. (4) A 'Pay / Send' section with amount and recipient label inputs that calls deductFromWallet. (5) A 'Transfer to Locker' section with amount input that calls transferToLockerFromWallet. (6) A scrollable transaction history grouped by date, each entry showing amount, type badge (Credit / Debit / Locker), label, and timestamp. Show success and error toasts for all actions.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
+          "msg-6"
         ],
         "quotes": [
-          "Wallet balance display",
-          "Add money to wallet",
-          "User can pay inside the app using wallet balance",
-          "Transaction history",
-          "UI screens"
+          "remove the feature of login by gmail"
         ]
       },
       "acceptanceCriteria": [
-        "Wallet balance is displayed prominently and updates after every add/pay/transfer action.",
-        "Add Money form calls addFundsToWallet and shows a success toast on completion.",
-        "Pay/Send form calls deductFromWallet and shows an error toast if balance is insufficient.",
-        "Transfer to Locker form calls transferToLockerFromWallet.",
-        "Transaction history is grouped by date and renders credit, debit, and locker-transfer entries with distinct colour-coded icons.",
-        "Screen is fully usable within a 430px mobile viewport."
-      ]
-    },
-    {
-      "id": "REQ-30",
-      "text": "Create a KYC flow inside the Wallet screen (or a dedicated modal/sub-page). Show a KYC status badge (Not Verified / Basic KYC / Full KYC). Provide a 'Complete Basic KYC' form collecting full name, date of birth, phone number, and last 4 digits of Aadhaar, which calls submitBasicKYC. Provide a 'Upgrade to Full KYC' form collecting address and a photo ID reference (text field), which calls submitFullKYC. Display which wallet features are restricted until KYC is completed (e.g., transaction limits note).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "KYC system (basic & full)",
-          "User flow",
-          "UI screens"
-        ]
-      },
-      "acceptanceCriteria": [
-        "KYC status badge reflects the current backend status on load.",
-        "Basic KYC form validates all fields before submission and shows a success toast.",
-        "Full KYC form is only accessible after Basic KYC is completed.",
-        "After each successful KYC submission the status badge updates immediately."
-      ]
-    },
-    {
-      "id": "REQ-31",
-      "text": "Create a Wallet PIN setup and verification flow. On first wallet access, if no PIN is set, prompt the user to create a 4-digit PIN using a PIN-pad UI (calls setWalletPIN). On subsequent wallet opens within the same session, show a PIN entry screen that calls verifyWalletPIN before displaying the wallet balance and actions. Include a 'Forgot PIN' notice explaining they must re-onboard (no backend reset, keeps it simple for v1). Show an error message after an incorrect PIN entry.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Security (PIN, OTP, encryption)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "PIN setup screen appears when getWalletProfile returns isPINSet = false.",
-        "PIN entry screen gates all wallet actions until the correct PIN is verified via verifyWalletPIN.",
-        "Incorrect PIN shows an inline error message.",
-        "PIN pad UI has 10 digit buttons and a backspace button, styled for mobile."
-      ]
-    },
-    {
-      "id": "REQ-32",
-      "text": "Add a Wallet tab to the bottom navigation bar in frontend/src/components/BottomNavigation.tsx with a wallet icon, making it a sixth navigation item alongside Dashboard, Expenses, Goals, Invest, and Calculator. Register the /wallet route in frontend/src/App.tsx pointing to the Wallet screen component.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "UI screens"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Bottom nav renders six tabs; Wallet tab is visible and navigates to /wallet.",
-        "Active tab highlight applies correctly to the Wallet tab when on /wallet.",
-        "All other five tabs continue to work as before."
-      ]
-    },
-    {
-      "id": "REQ-33",
-      "text": "Update the Dashboard screen (frontend/src/components/Dashboard.tsx) to include a Wallet balance card alongside the Spending, Saving, and Investment cards, and add a 'Go to Wallet' quick-action button in the quick-actions row.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Wallet balance display"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Wallet balance card is shown on the Dashboard and reflects the current wallet balance from the backend.",
-        "Go to Wallet quick-action button navigates to /wallet.",
-        "Existing Spending, Saving, Investment cards and other quick-action buttons are unaffected."
-      ]
-    },
-    {
-      "id": "REQ-34",
-      "text": "Create a simple Admin Panel screen at frontend/src/components/AdminPanel.tsx, accessible via a hidden route /admin. The panel must display: a list of all registered user principals with their wallet balance and KYC status (using a new backend query getAllWalletSummaries restricted to a hardcoded admin principal), the ability to view any user's transaction count, and a read-only system stats section showing total users, total wallet balance in the system, and count of basic vs full KYC users. Add the corresponding getAllWalletSummaries backend query that returns this aggregated data only when called by the designated admin principal.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Admin control panel"
-        ]
-      },
-      "acceptanceCriteria": [
-        "getAllWalletSummaries backend function returns data only for the hardcoded admin principal and returns an access-denied error for all others.",
-        "Admin Panel screen renders a table of users with principal, wallet balance, and KYC status columns.",
-        "System stats (total users, total balance, KYC counts) are displayed as summary cards.",
-        "/admin route is registered in App.tsx but is not linked from the bottom navigation bar."
-      ]
-    },
-    {
-      "id": "REQ-35",
-      "text": "Display an in-app legal and compliance notice on the Wallet screen and KYC screens. Show a brief, student-friendly disclaimer noting: this is a simulated in-app wallet for educational use, real money transfers require RBI-regulated PPI (Prepaid Payment Instrument) licensing in India, Aadhaar data collected is stored only on-device / in-app and is not transmitted to third parties, and users must be 18+ or have guardian consent for full KYC. This notice should appear as a collapsible info card.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "Legal & compliance points (India)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Compliance notice card is visible on both the Wallet screen and the KYC flow.",
-        "Card is collapsible (collapsed by default) so it does not obstruct primary actions.",
-        "Text covers PPI licensing, Aadhaar data handling, and age requirement points."
+        "The login page renders with no Gmail or Google login button.",
+        "No Google OAuth imports, SDK scripts, or handler functions remain in LoginPage.tsx or any other frontend file.",
+        "Internet Identity login continues to work correctly.",
+        "No console errors related to missing Google libraries or configurations."
       ]
     }
   ],
   "constraints": [
-    "All Motoko logic must remain in the single backend/main.mo actor file.",
-    "Do not modify any file listed under frontend.immutablePaths.",
-    "Wallet features must work without any external bank account or real payment gateway integration.",
-    "KYC data storage must remain entirely within the ICP canister — no third-party KYC APIs.",
-    "Admin panel must be access-controlled by principal check in the backend; never expose all user data to non-admin callers."
+    "Do not modify frontend/src/hooks/useInternetIdentity.ts or frontend/src/hooks/useActor.ts.",
+    "Do not alter backend authentication logic."
   ],
   "nonGoals": [
-    "Real money movement, RBI-regulated PPI licensing, or integration with actual payment rails (UPI, Razorpay, Stripe, etc.).",
-    "OTP via SMS — no SMS/email service integrations are supported on this platform.",
-    "QR code generation or scanning (previously removed).",
-    "Biometric authentication.",
-    "Monetization feature implementation (mentioned in request as a design deliverable, not a buildable feature on this platform).",
-    "Multi-canister or microservices architecture.",
-    "Any changes to the existing income, expense, savings goal, locker, or investment features beyond the wallet-to-locker transfer."
+    "Adding any new authentication provider.",
+    "Changing the Internet Identity login flow.",
+    "Modifying any screen other than the login page."
   ],
   "imageRequirements": {
     "required": [],

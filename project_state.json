@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 15,
+  "projectStateVersion": 17,
   "summary": "Mobile app called Student Budget Manager for students. Takes student income (pocket money, stipend, part-time) and automatically divides it into Spending, Saving, and Investment buckets. Shows daily spend limits, monthly savings targets, and safe investment amounts. Includes budget calculator, expense tracking, savings goal tracker, low-risk investment suggestions, and a Digital Locker that locks savings until a goal or time period is met. Also includes a wallet-based payment system (no bank account required) with user wallet creation, add money (cash/card/UPI), in-app payments, wallet balance display, transaction history, KYC (basic & full), security (PIN, OTP, encryption), admin control panel, and India legal/compliance considerations. Must be simple, student-friendly, and low-data usage.",
   "architectural_notes": [
     "App must be low-data usage and student-friendly (simple UX)",
@@ -368,6 +368,20 @@
       "summary": "Implement backend query functions: getWalletBalance returns the caller's current wallet balance as Nat, getWalletTransactions returns the full transaction log array for the caller, getKYCStatus returns the caller's current KYC status variant, getWalletProfile returns a combined record of balance, KYC status, and whether a PIN is set.",
       "reqIds": [
         "REQ-27"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-26",
+      "summary": "Remove Gmail/Google login feature from the app",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-27",
+      "summary": "Remove any Gmail/Google login button, option, or reference from the login page (frontend/src/components/LoginPage.tsx). The only authentication method available must be Internet Identity. Delete any Google-related imports, state variables, handlers, and UI elements. The Internet Identity login button and all existing page content must remain untouched.",
+      "reqIds": [
+        "REQ-36"
       ],
       "status": "pending"
     }
