@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import { useInternetIdentity } from './useInternetIdentity';
-import type { Profile, Expense, SavingsGoal, DigitalLocker, UserProfile, WalletTransaction } from '../backend';
+import type {
+  Profile, Expense, SavingsGoal, DigitalLocker, UserProfile,
+  Transaction, WalletProfile, KycStatus, WalletSummary, SystemStats,
+} from '../backend';
 
 // ── User Profile ─────────────────────────────────────────────────
 
@@ -110,15 +113,14 @@ export function useSetAllocationSplit() {
 
 export function useGetExpenses() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
   return useQuery<Expense[]>({
-    queryKey: ['expenses', identity?.getPrincipal().toString()],
+    queryKey: ['expenses'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getExpenses();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -141,24 +143,22 @@ export function useAddExpense() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }
 
-// ── Savings Goals ────────────────────────────────────────────────
+// ── Savings Goals ─────────────────────────────────────────────────
 
 export function useGetSavingsGoals() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
   return useQuery<SavingsGoal[]>({
-    queryKey: ['savingsGoals', identity?.getPrincipal().toString()],
+    queryKey: ['savingsGoals'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getSavingsGoals();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -181,7 +181,6 @@ export function useAddSavingsGoal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savingsGoals'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }
@@ -197,24 +196,22 @@ export function useUpdateSavingsGoal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savingsGoals'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }
 
-// ── Digital Locker ───────────────────────────────────────────────
+// ── Digital Locker ────────────────────────────────────────────────
 
 export function useGetLockerStatus() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
   return useQuery<DigitalLocker | null>({
-    queryKey: ['lockerStatus', identity?.getPrincipal().toString()],
+    queryKey: ['lockerStatus'],
     queryFn: async () => {
       if (!actor) return null;
       return actor.getLockerStatus();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
@@ -238,107 +235,234 @@ export function useRequestUnlock() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lockerStatus'] });
       queryClient.invalidateQueries({ queryKey: ['savingsGoals'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 }
 
-// ── Investment Suggestions ───────────────────────────────────────
+// ── Investment Suggestions ────────────────────────────────────────
 
 export function useGetInvestmentSuggestions() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
-  return useQuery<Array<[string, number]>>({
-    queryKey: ['investmentSuggestions', identity?.getPrincipal().toString()],
+  return useQuery<[string, number][]>({
+    queryKey: ['investmentSuggestions'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getInvestmentSuggestions();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
-// ── Wallet ───────────────────────────────────────────────────────
+// ── Wallet ────────────────────────────────────────────────────────
+
+const WALLET_QUERY_KEYS = ['walletProfile', 'walletBalance', 'walletTransactions', 'kycStatus'];
+
+function invalidateWalletQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  WALLET_QUERY_KEYS.forEach(key => {
+    queryClient.invalidateQueries({ queryKey: [key] });
+  });
+}
+
+export function useGetWalletProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<WalletProfile>({
+    queryKey: ['walletProfile'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getWalletProfile();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
 
 export function useGetWalletBalance() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
-  return useQuery<number>({
-    queryKey: ['walletBalance', identity?.getPrincipal().toString()],
+  return useQuery<bigint>({
+    queryKey: ['walletBalance'],
     queryFn: async () => {
-      if (!actor) return 0;
+      if (!actor) return BigInt(0);
       return actor.getWalletBalance();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
 export function useGetWalletTransactions() {
   const { actor, isFetching: actorFetching } = useActor();
-  const { identity } = useInternetIdentity();
 
-  return useQuery<WalletTransaction[]>({
-    queryKey: ['walletTransactions', identity?.getPrincipal().toString()],
+  return useQuery<Transaction[]>({
+    queryKey: ['walletTransactions'],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getWalletTransactions();
     },
-    enabled: !!actor && !actorFetching && !!identity,
+    enabled: !!actor && !actorFetching,
   });
 }
 
-export function useTransferToLocker() {
+export function useGetKYCStatus() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<KycStatus>({
+    queryKey: ['kycStatus'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getKYCStatus();
+    },
+    enabled: !!actor && !actorFetching,
+  });
+}
+
+export function useCreateWallet() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ amount, note }: { amount: number; note: string }) => {
+    mutationFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      return actor.transferToLocker(amount, note);
+      return actor.createWallet();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
-      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
-      queryClient.invalidateQueries({ queryKey: ['lockerStatus'] });
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      invalidateWalletQueries(queryClient);
     },
   });
 }
 
-export function useSendFundsFromWallet() {
+export function useAddFundsToWallet() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ amount, transactionLabel }: { amount: bigint; transactionLabel: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.addFundsToWallet(amount, transactionLabel);
+    },
+    onSuccess: () => {
+      invalidateWalletQueries(queryClient);
+    },
+  });
+}
+
+export function useDeductFromWallet() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ amount, transactionLabel }: { amount: bigint; transactionLabel: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.deductFromWallet(amount, transactionLabel);
+    },
+    onSuccess: () => {
+      invalidateWalletQueries(queryClient);
+    },
+  });
+}
+
+export function useTransferToLockerFromWallet() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ amount }: { amount: bigint }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.transferToLockerFromWallet(amount);
+    },
+    onSuccess: () => {
+      invalidateWalletQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ['lockerStatus'] });
+    },
+  });
+}
+
+export function useSetWalletPIN() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ pin }: { pin: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.setWalletPIN(pin);
+    },
+    onSuccess: () => {
+      invalidateWalletQueries(queryClient);
+    },
+  });
+}
+
+export function useVerifyWalletPIN() {
+  const { actor } = useActor();
+
+  return useMutation({
+    mutationFn: async ({ pin }: { pin: string }): Promise<boolean> => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.verifyWalletPIN(pin);
+    },
+  });
+}
+
+export function useSubmitBasicKYC() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
-      recipient,
-      amount,
-      note,
+      name,
+      dob,
+      phone,
+      aadhaarLast4,
     }: {
-      recipient: string;
-      amount: number;
-      note: string;
+      name: string;
+      dob: string;
+      phone: string;
+      aadhaarLast4: string;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      const result = await actor.sendFundsFromWallet(recipient, amount, note);
-      if (result.__kind__ === 'err') {
-        const err = result.err;
-        if (err.__kind__ === 'insufficientFunds') {
-          throw new Error('Insufficient funds in your wallet');
-        } else if (err.__kind__ === 'userNotFound') {
-          throw new Error('Recipient not found');
-        } else if (err.__kind__ === 'other') {
-          throw new Error(err.other);
-        }
-        throw new Error('Failed to send funds');
-      }
-      return result.ok;
+      return actor.submitBasicKYC(name, dob, phone, aadhaarLast4);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
-      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+      invalidateWalletQueries(queryClient);
     },
+  });
+}
+
+export function useSubmitFullKYC() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ address, photoIdRef }: { address: string; photoIdRef: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.submitFullKYC(address, photoIdRef);
+    },
+    onSuccess: () => {
+      invalidateWalletQueries(queryClient);
+    },
+  });
+}
+
+// ── Admin ─────────────────────────────────────────────────────────
+
+export function useGetAllWalletSummaries() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  return useQuery<[WalletSummary[], SystemStats] | null>({
+    queryKey: ['allWalletSummaries'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      try {
+        return await actor.getAllWalletSummaries();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('Unauthorized') || msg.includes('Only admins')) {
+          throw new Error('UNAUTHORIZED');
+        }
+        throw err;
+      }
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
   });
 }

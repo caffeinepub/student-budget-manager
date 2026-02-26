@@ -13,6 +13,23 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const KycStatus = IDL.Variant({
+  'full' : IDL.Null,
+  'none' : IDL.Null,
+  'basic' : IDL.Null,
+});
+export const WalletSummary = IDL.Record({
+  'principal' : IDL.Principal,
+  'balance' : IDL.Nat,
+  'kycStatus' : KycStatus,
+  'transactionCount' : IDL.Nat,
+});
+export const SystemStats = IDL.Record({
+  'fullKycCount' : IDL.Nat,
+  'totalUsers' : IDL.Nat,
+  'totalBalance' : IDL.Nat,
+  'basicKycCount' : IDL.Nat,
+});
 export const UserProfile = IDL.Record({ 'displayName' : IDL.Text });
 export const Expense = IDL.Record({
   'date' : IDL.Int,
@@ -53,31 +70,39 @@ export const Profile = IDL.Record({
   'savingsGoals' : IDL.Vec(SavingsGoal),
   'incomeSources' : IDL.Vec(IncomeSource),
 });
-export const WalletTransaction = IDL.Record({
+export const WalletProfile = IDL.Record({
+  'balance' : IDL.Nat,
+  'kycStatus' : KycStatus,
+  'hasPin' : IDL.Bool,
+});
+export const TransactionType = IDL.Variant({
+  'lockerTransfer' : IDL.Null,
+  'credit' : IDL.Null,
+  'debit' : IDL.Null,
+});
+export const Transaction = IDL.Record({
   'id' : IDL.Nat,
-  'transactionType' : IDL.Text,
+  'transactionType' : TransactionType,
+  'transactionLabel' : IDL.Text,
   'note' : IDL.Text,
   'timestamp' : IDL.Int,
-  'amount' : IDL.Float64,
-  'recipientLabel' : IDL.Opt(IDL.Text),
-});
-export const SendFundsError = IDL.Variant({
-  'userNotFound' : IDL.Null,
-  'other' : IDL.Text,
-  'insufficientFunds' : IDL.Null,
+  'amount' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addExpense' : IDL.Func([IDL.Float64, IDL.Text, IDL.Text], [], []),
-  'addFundsToWallet' : IDL.Func(
-      [IDL.Float64, IDL.Opt(IDL.Text), IDL.Text],
-      [],
-      [],
-    ),
+  'addFundsToWallet' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'addIncome' : IDL.Func([IDL.Text, IDL.Float64], [], []),
   'addSavingsGoal' : IDL.Func([IDL.Text, IDL.Float64, IDL.Int], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'createWallet' : IDL.Func([], [], []),
+  'deductFromWallet' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'getAllWalletSummaries' : IDL.Func(
+      [],
+      [IDL.Vec(WalletSummary), SystemStats],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getExpenses' : IDL.Func([], [IDL.Vec(Expense)], ['query']),
@@ -86,6 +111,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float64))],
       ['query'],
     ),
+  'getKYCStatus' : IDL.Func([], [KycStatus], ['query']),
   'getLockerStatus' : IDL.Func([], [DigitalLocker], ['query']),
   'getProfile' : IDL.Func([IDL.Principal], [Profile], ['query']),
   'getSavingsGoals' : IDL.Func([], [IDL.Vec(SavingsGoal)], ['query']),
@@ -94,12 +120,9 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
-  'getWalletBalance' : IDL.Func([], [IDL.Float64], ['query']),
-  'getWalletTransactions' : IDL.Func(
-      [],
-      [IDL.Vec(WalletTransaction)],
-      ['query'],
-    ),
+  'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
+  'getWalletProfile' : IDL.Func([], [WalletProfile], ['query']),
+  'getWalletTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'requestUnlock' : IDL.Func(
       [IDL.Text, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
@@ -107,18 +130,17 @@ export const idlService = IDL.Service({
       [],
     ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-  'sendFundsFromWallet' : IDL.Func(
-      [IDL.Text, IDL.Float64, IDL.Text],
-      [IDL.Variant({ 'ok' : WalletTransaction, 'err' : SendFundsError })],
-      [],
-    ),
   'setAllocationSplit' : IDL.Func(
       [IDL.Float64, IDL.Float64, IDL.Float64],
       [],
       [],
     ),
-  'transferToLocker' : IDL.Func([IDL.Float64, IDL.Text], [], []),
+  'setWalletPIN' : IDL.Func([IDL.Text], [], []),
+  'submitBasicKYC' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text], [], []),
+  'submitFullKYC' : IDL.Func([IDL.Text, IDL.Text], [], []),
+  'transferToLockerFromWallet' : IDL.Func([IDL.Nat], [], []),
   'updateSavingsGoal' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
+  'verifyWalletPIN' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
 });
 
 export const idlInitArgs = [];
@@ -128,6 +150,23 @@ export const idlFactory = ({ IDL }) => {
     'admin' : IDL.Null,
     'user' : IDL.Null,
     'guest' : IDL.Null,
+  });
+  const KycStatus = IDL.Variant({
+    'full' : IDL.Null,
+    'none' : IDL.Null,
+    'basic' : IDL.Null,
+  });
+  const WalletSummary = IDL.Record({
+    'principal' : IDL.Principal,
+    'balance' : IDL.Nat,
+    'kycStatus' : KycStatus,
+    'transactionCount' : IDL.Nat,
+  });
+  const SystemStats = IDL.Record({
+    'fullKycCount' : IDL.Nat,
+    'totalUsers' : IDL.Nat,
+    'totalBalance' : IDL.Nat,
+    'basicKycCount' : IDL.Nat,
   });
   const UserProfile = IDL.Record({ 'displayName' : IDL.Text });
   const Expense = IDL.Record({
@@ -169,31 +208,39 @@ export const idlFactory = ({ IDL }) => {
     'savingsGoals' : IDL.Vec(SavingsGoal),
     'incomeSources' : IDL.Vec(IncomeSource),
   });
-  const WalletTransaction = IDL.Record({
+  const WalletProfile = IDL.Record({
+    'balance' : IDL.Nat,
+    'kycStatus' : KycStatus,
+    'hasPin' : IDL.Bool,
+  });
+  const TransactionType = IDL.Variant({
+    'lockerTransfer' : IDL.Null,
+    'credit' : IDL.Null,
+    'debit' : IDL.Null,
+  });
+  const Transaction = IDL.Record({
     'id' : IDL.Nat,
-    'transactionType' : IDL.Text,
+    'transactionType' : TransactionType,
+    'transactionLabel' : IDL.Text,
     'note' : IDL.Text,
     'timestamp' : IDL.Int,
-    'amount' : IDL.Float64,
-    'recipientLabel' : IDL.Opt(IDL.Text),
-  });
-  const SendFundsError = IDL.Variant({
-    'userNotFound' : IDL.Null,
-    'other' : IDL.Text,
-    'insufficientFunds' : IDL.Null,
+    'amount' : IDL.Nat,
   });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addExpense' : IDL.Func([IDL.Float64, IDL.Text, IDL.Text], [], []),
-    'addFundsToWallet' : IDL.Func(
-        [IDL.Float64, IDL.Opt(IDL.Text), IDL.Text],
-        [],
-        [],
-      ),
+    'addFundsToWallet' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'addIncome' : IDL.Func([IDL.Text, IDL.Float64], [], []),
     'addSavingsGoal' : IDL.Func([IDL.Text, IDL.Float64, IDL.Int], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'createWallet' : IDL.Func([], [], []),
+    'deductFromWallet' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'getAllWalletSummaries' : IDL.Func(
+        [],
+        [IDL.Vec(WalletSummary), SystemStats],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getExpenses' : IDL.Func([], [IDL.Vec(Expense)], ['query']),
@@ -202,6 +249,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float64))],
         ['query'],
       ),
+    'getKYCStatus' : IDL.Func([], [KycStatus], ['query']),
     'getLockerStatus' : IDL.Func([], [DigitalLocker], ['query']),
     'getProfile' : IDL.Func([IDL.Principal], [Profile], ['query']),
     'getSavingsGoals' : IDL.Func([], [IDL.Vec(SavingsGoal)], ['query']),
@@ -210,12 +258,9 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
-    'getWalletBalance' : IDL.Func([], [IDL.Float64], ['query']),
-    'getWalletTransactions' : IDL.Func(
-        [],
-        [IDL.Vec(WalletTransaction)],
-        ['query'],
-      ),
+    'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
+    'getWalletProfile' : IDL.Func([], [WalletProfile], ['query']),
+    'getWalletTransactions' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'requestUnlock' : IDL.Func(
         [IDL.Text, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
@@ -223,18 +268,21 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-    'sendFundsFromWallet' : IDL.Func(
-        [IDL.Text, IDL.Float64, IDL.Text],
-        [IDL.Variant({ 'ok' : WalletTransaction, 'err' : SendFundsError })],
-        [],
-      ),
     'setAllocationSplit' : IDL.Func(
         [IDL.Float64, IDL.Float64, IDL.Float64],
         [],
         [],
       ),
-    'transferToLocker' : IDL.Func([IDL.Float64, IDL.Text], [], []),
+    'setWalletPIN' : IDL.Func([IDL.Text], [], []),
+    'submitBasicKYC' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'submitFullKYC' : IDL.Func([IDL.Text, IDL.Text], [], []),
+    'transferToLockerFromWallet' : IDL.Func([IDL.Nat], [], []),
     'updateSavingsGoal' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
+    'verifyWalletPIN' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
   });
 };
 

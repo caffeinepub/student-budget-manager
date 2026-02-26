@@ -5,9 +5,9 @@ const tabs = [
   { path: '/', label: 'Home', icon: LayoutDashboard },
   { path: '/expenses', label: 'Expenses', icon: Receipt },
   { path: '/goals', label: 'Goals', icon: Target },
-  { path: '/wallet', label: 'Wallet', icon: Wallet },
   { path: '/invest', label: 'Invest', icon: TrendingUp },
   { path: '/calculator', label: 'Calc', icon: Calculator },
+  { path: '/wallet', label: 'Wallet', icon: Wallet },
 ];
 
 export default function BottomNavigation() {
@@ -24,14 +24,14 @@ export default function BottomNavigation() {
             <button
               key={path}
               onClick={() => router.navigate({ to: path })}
-              className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl touch-target transition-all duration-200 min-w-[48px] ${
+              className={`flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-xl touch-target transition-all duration-200 min-w-[44px] ${
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <div className={`p-1.5 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary/10' : ''}`}>
-                <Icon size={18} strokeWidth={isActive ? 2.5 : 1.8} />
+                <Icon size={17} strokeWidth={isActive ? 2.5 : 1.8} />
               </div>
               <span className={`text-[9px] font-medium ${isActive ? 'font-semibold' : ''}`}>{label}</span>
             </button>

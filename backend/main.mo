@@ -6,12 +6,14 @@ import Runtime "mo:core/Runtime";
 import Float "mo:core/Float";
 import Int "mo:core/Int";
 import Array "mo:core/Array";
-import List "mo:core/List";
-import Order "mo:core/Order";
 import Nat "mo:core/Nat";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
+import Iter "mo:core/Iter";
 
+// Apply migration on upgrade
+(with migration = Migration.run)
 actor {
   // ── Access Control ─────────────────────────────────────
   let accessControlState = AccessControl.initState();
@@ -68,44 +70,73 @@ actor {
     digitalLocker : DigitalLocker;
   };
 
-  public type WalletTransaction = {
-    id : Nat;
-    amount : Float;
-    recipientLabel : ?Text;
-    transactionType : Text;
-    timestamp : Int;
-    note : Text;
+  public type CompleteProfile = {
+    profile : Profile;
   };
 
-  public type LockerTransfer = {
+  // ── Wallet and KYC ─────────────────────────────
+  public type KycStatus = {
+    #none;
+    #basic;
+    #full;
+  };
+
+  public type KycDetails = {
+    name : Text;
+    dob : Text;
+    phone : Text;
+    aadhaarLast4 : Text;
+    address : ?Text;
+    photoIdRef : ?Text;
+  };
+
+  public type TransactionType = {
+    #credit;
+    #debit;
+    #lockerTransfer;
+  };
+
+  public type Transaction = {
     id : Nat;
-    amount : Float;
-    destination : Text;
-    timestamp : Int;
+    amount : Nat;
+    transactionType : TransactionType;
+    transactionLabel : Text;
     note : Text;
+    timestamp : Int;
   };
 
   public type Wallet = {
-    balance : Float;
-    transactions : [WalletTransaction];
-    transfers : [LockerTransfer];
+    balance : Nat;
+    pinHash : ?Text;
+    kycStatus : KycStatus;
+    kycDetails : ?KycDetails;
+    transactions : [Transaction];
+    transactionCounter : Nat;
   };
 
-  public type CompleteProfile = {
-    profile : Profile;
-    wallet : Wallet;
+  public type WalletProfile = {
+    balance : Nat;
+    kycStatus : KycStatus;
+    hasPin : Bool;
   };
 
-  public type SendFundsError = {
-    #insufficientFunds;
-    #userNotFound;
-    #other : Text;
+  public type WalletSummary = {
+    principal : Principal;
+    balance : Nat;
+    kycStatus : KycStatus;
+    transactionCount : Nat;
+  };
+
+  public type SystemStats = {
+    totalUsers : Nat;
+    totalBalance : Nat;
+    basicKycCount : Nat;
+    fullKycCount : Nat;
   };
 
   // ── State ───────────────────────────────────────────────
   let profiles = Map.empty<Principal, CompleteProfile>();
-  var nextTransactionId = 0;
-  var nextTransferId = 0;
+  let wallets = Map.empty<Principal, Wallet>();
 
   // ── Internal helpers ────────────────────────────────────
   func emptyProfile() : CompleteProfile {
@@ -117,11 +148,6 @@ actor {
         expenses = [];
         savingsGoals = [];
         digitalLocker = { locked = true; conditionType = null; unlockDate = null };
-      };
-      wallet = {
-        balance = 0.0;
-        transactions = [];
-        transfers = [];
       };
     };
   };
@@ -141,10 +167,6 @@ actor {
     var total : Float = 0.0;
     for (s in sources.values()) { total += s.amount };
     total;
-  };
-
-  func convertTransactionToTuple(t : WalletTransaction) : (Int, WalletTransaction) {
-    (t.timestamp, t);
   };
 
   // ── User Profile (required by frontend) ────────────────
@@ -172,7 +194,6 @@ actor {
         savingsGoals = existing.profile.savingsGoals;
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -203,7 +224,6 @@ actor {
         savingsGoals = existing.profile.savingsGoals;
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -236,7 +256,6 @@ actor {
         savingsGoals = existing.profile.savingsGoals;
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -262,7 +281,6 @@ actor {
         savingsGoals = existing.profile.savingsGoals;
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -297,7 +315,6 @@ actor {
         savingsGoals = existing.profile.savingsGoals.concat([newGoal]);
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -322,7 +339,6 @@ actor {
         savingsGoals = updatedGoals;
         digitalLocker = existing.profile.digitalLocker;
       };
-      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -374,7 +390,6 @@ actor {
             savingsGoals = existing.profile.savingsGoals;
             digitalLocker = updatedLocker;
           };
-          wallet = existing.wallet;
         };
         profiles.add(caller, updated);
         return true;
@@ -401,7 +416,6 @@ actor {
           savingsGoals = existing.profile.savingsGoals;
           digitalLocker = updatedLocker;
         };
-        wallet = existing.wallet;
       };
       profiles.add(caller, updated);
       if (Time.now() >= unlockDate) {
@@ -419,7 +433,6 @@ actor {
             savingsGoals = existing.profile.savingsGoals;
             digitalLocker = unlockedLocker;
           };
-          wallet = existing.wallet;
         };
         profiles.add(caller, finalUpdated);
         return true;
@@ -427,121 +440,6 @@ actor {
       return true;
     };
     false;
-  };
-
-  // ── Wallet Functions ────────────────────────────────────
-  public query ({ caller }) func getWalletBalance() : async Float {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can view wallet balance");
-    };
-    let p = getOrCreateProfile(caller);
-    p.wallet.balance;
-  };
-
-  // ── DEPRECATED: addFundsToWallet ───────────────────────
-  // This function is intentionally left unimplemented (deprecated)
-  // due to changes in the application design.
-  // Do not call from the frontend!
-  public shared ({ caller }) func addFundsToWallet(_amount : Float, _senderLabel : ?Text, _note : Text) : async () {
-    Runtime.trap("addFundsToWallet function is deprecated and should not be called!");
-  };
-
-  public shared ({ caller }) func transferToLocker(amount : Float, note : Text) : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can transfer to locker");
-    };
-    let existing = getOrCreateProfile(caller);
-    if (amount > existing.wallet.balance) {
-      Runtime.trap("Insufficient wallet balance");
-    };
-    let newTransfer : LockerTransfer = {
-      id = nextTransferId;
-      amount;
-      destination = "locker";
-      timestamp = Time.now();
-      note;
-    };
-    nextTransferId += 1;
-
-    let updated : CompleteProfile = {
-      profile = existing.profile;
-      wallet = {
-        balance = existing.wallet.balance - amount;
-        transactions = existing.wallet.transactions;
-        transfers = existing.wallet.transfers.concat([newTransfer]);
-      };
-    };
-    profiles.add(caller, updated);
-  };
-
-  public query ({ caller }) func getWalletTransactions() : async [WalletTransaction] {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can view transactions");
-    };
-    let p = getOrCreateProfile(caller);
-
-    let transactionsList = List.fromArray<WalletTransaction>(p.wallet.transactions);
-
-    let sortedTransactionsList = transactionsList.sort(
-      func(a, b) {
-        if (a.timestamp < b.timestamp) {
-          #greater;
-        } else if (a.timestamp > b.timestamp) {
-          #less;
-        } else {
-          #equal;
-        };
-      }
-    );
-
-    sortedTransactionsList.toArray();
-  };
-
-  // ── NEW: Send Funds FROM Wallet (Scan to Send) ───────
-  public shared ({ caller }) func sendFundsFromWallet(
-    recipient : Text,
-    amount : Float,
-    note : Text,
-  ) : async {
-    #ok : WalletTransaction;
-    #err : SendFundsError;
-  } {
-    // Auth check
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      return #err(#other("Unauthorized: Only users can send funds"));
-    };
-
-    let senderProfile = getOrCreateProfile(caller);
-
-    // Check sufficient funds
-    if (amount > senderProfile.wallet.balance) {
-      return #err(#insufficientFunds);
-    };
-
-    // Create transaction
-    let transaction : WalletTransaction = {
-      id = nextTransactionId;
-      amount;
-      recipientLabel = ?recipient;
-      transactionType = "sent";
-      timestamp = Time.now();
-      note;
-    };
-
-    // Update sender's wallet with deduction
-    let updatedSender : CompleteProfile = {
-      profile = senderProfile.profile;
-      wallet = {
-        balance = senderProfile.wallet.balance - amount;
-        transactions = senderProfile.wallet.transactions.concat([transaction]);
-        transfers = senderProfile.wallet.transfers;
-      };
-    };
-
-    profiles.add(caller, updatedSender);
-    nextTransactionId += 1;
-
-    #ok(transaction);
   };
 
   // ── Investment Suggestions ──────────────────────────────
@@ -558,4 +456,283 @@ actor {
       ("Index Funds", investingAmount * 0.2),
     ];
   };
+
+  // ── Wallet Functions ─────────────────────────────
+
+  public shared ({ caller }) func createWallet() : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can create wallets");
+    };
+    switch (wallets.get(caller)) {
+      case (null) {
+        let newWallet : Wallet = {
+          balance = 0;
+          pinHash = null;
+          kycStatus = #none;
+          kycDetails = null;
+          transactions = [];
+          transactionCounter = 0;
+        };
+        wallets.add(caller, newWallet);
+      };
+      case (?_) { Runtime.trap("Wallet already exists") };
+    };
+  };
+
+  public shared ({ caller }) func addFundsToWallet(amount : Nat, transactionLabel : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can add funds");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    let updatedBalance = existingWallet.balance + amount;
+    let newTransaction : Transaction = {
+      id = existingWallet.transactionCounter;
+      amount;
+      transactionType = #credit;
+      transactionLabel;
+      note = "";
+      timestamp = Time.now();
+    };
+    let updatedTransactions = existingWallet.transactions.concat([newTransaction]);
+    let updatedWallet : Wallet = {
+      existingWallet with
+      balance = updatedBalance;
+      transactions = updatedTransactions;
+      transactionCounter = existingWallet.transactionCounter + 1;
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public shared ({ caller }) func deductFromWallet(amount : Nat, transactionLabel : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can deduct funds");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    if (existingWallet.balance < amount) {
+      Runtime.trap("Insufficient balance");
+    };
+    let updatedBalance = existingWallet.balance - amount;
+    let newTransaction : Transaction = {
+      id = existingWallet.transactionCounter;
+      amount;
+      transactionType = #debit;
+      transactionLabel;
+      note = "";
+      timestamp = Time.now();
+    };
+    let updatedTransactions = existingWallet.transactions.concat([newTransaction]);
+    let updatedWallet : Wallet = {
+      existingWallet with
+      balance = updatedBalance;
+      transactions = updatedTransactions;
+      transactionCounter = existingWallet.transactionCounter + 1;
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public shared ({ caller }) func transferToLockerFromWallet(amount : Nat) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can transfer to locker");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    if (existingWallet.balance < amount) {
+      Runtime.trap("Insufficient balance");
+    };
+    let updatedBalance = existingWallet.balance - amount;
+    let newTransaction : Transaction = {
+      id = existingWallet.transactionCounter;
+      amount;
+      transactionType = #lockerTransfer;
+      transactionLabel = "Locker Transfer";
+      note = "";
+      timestamp = Time.now();
+    };
+    let updatedTransactions = existingWallet.transactions.concat([newTransaction]);
+    let updatedWallet : Wallet = {
+      existingWallet with
+      balance = updatedBalance;
+      transactions = updatedTransactions;
+      transactionCounter = existingWallet.transactionCounter + 1;
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public shared ({ caller }) func setWalletPIN(pin : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can set PIN");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    let updatedWallet : Wallet = {
+      existingWallet with pinHash = ?pin
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public query ({ caller }) func verifyWalletPIN(pin : Text) : async Bool {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can verify PIN");
+    };
+    switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) {
+        switch (w.pinHash, ?pin) {
+          case (?stored, ?entered) { stored == entered };
+          case (?(_), null) { false };
+          case (null, _) { false };
+        };
+      };
+    };
+  };
+
+  public shared ({ caller }) func submitBasicKYC(name : Text, dob : Text, phone : Text, aadhaarLast4 : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can submit KYC");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    let details : KycDetails = {
+      name;
+      dob;
+      phone;
+      aadhaarLast4;
+      address = null;
+      photoIdRef = null;
+    };
+    let updatedWallet : Wallet = {
+      existingWallet with
+      kycDetails = ?details;
+      kycStatus = #basic;
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public shared ({ caller }) func submitFullKYC(address : Text, photoIdRef : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can submit full KYC");
+    };
+    let existingWallet = switch (wallets.get(caller)) {
+      case (null) { Runtime.trap("Wallet not found") };
+      case (?w) { w };
+    };
+    let updatedDetails = switch (existingWallet.kycDetails) {
+      case (?basic) {
+        {
+          basic with
+          address = ?address;
+          photoIdRef = ?photoIdRef;
+        };
+      };
+      case (null) { Runtime.trap("Basic KYC must be submitted first") };
+    };
+    let updatedWallet : Wallet = {
+      existingWallet with
+      kycDetails = ?updatedDetails;
+      kycStatus = #full;
+    };
+    wallets.add(caller, updatedWallet);
+  };
+
+  public query ({ caller }) func getWalletBalance() : async Nat {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view balance");
+    };
+    switch (wallets.get(caller)) {
+      case (null) { 0 };
+      case (?w) { w.balance };
+    };
+  };
+
+  public query ({ caller }) func getWalletTransactions() : async [Transaction] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view wallet transactions");
+    };
+    switch (wallets.get(caller)) {
+      case (null) { [] };
+      case (?w) { w.transactions };
+    };
+  };
+
+  public query ({ caller }) func getKYCStatus() : async KycStatus {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view KYC status");
+    };
+    switch (wallets.get(caller)) {
+      case (null) { #none };
+      case (?w) { w.kycStatus };
+    };
+  };
+
+  public query ({ caller }) func getWalletProfile() : async WalletProfile {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view wallet profile");
+    };
+    switch (wallets.get(caller)) {
+      case (null) {
+        {
+          balance = 0;
+          kycStatus = #none;
+          hasPin = false;
+        };
+      };
+      case (?w) {
+        {
+          balance = w.balance;
+          kycStatus = w.kycStatus;
+          hasPin = w.pinHash != null;
+        };
+      };
+    };
+  };
+
+  // ── Admin Functions ─────────────────────────────
+  public query ({ caller }) func getAllWalletSummaries() : async ([WalletSummary], SystemStats) {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can access all wallet summaries");
+    };
+
+    var totalBalance = 0 : Nat;
+    var basicKycCount = 0 : Nat;
+    var fullKycCount = 0 : Nat;
+
+    let summaries = wallets.toArray().map(
+      func((principal, wallet)) {
+        totalBalance += wallet.balance;
+        switch (wallet.kycStatus) {
+          case (#basic) { basicKycCount += 1 };
+          case (#full) { fullKycCount += 1 };
+          case (#none) {};
+        };
+        {
+          principal;
+          balance = wallet.balance;
+          kycStatus = wallet.kycStatus;
+          transactionCount = wallet.transactions.size();
+        };
+      }
+    );
+
+    let stats : SystemStats = {
+      totalUsers = wallets.size();
+      totalBalance;
+      basicKycCount;
+      fullKycCount;
+    };
+
+    (summaries, stats);
+  };
 };
+

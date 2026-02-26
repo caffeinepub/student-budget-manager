@@ -7,11 +7,6 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface BudgetAllocation {
-    savingPct: number;
-    investingPct: number;
-    spendingPct: number;
-}
 export interface IncomeSource {
     name: string;
     amount: number;
@@ -21,23 +16,16 @@ export interface DigitalLocker {
     locked: boolean;
     conditionType?: UnlockCondition;
 }
-export type SendFundsError = {
-    __kind__: "userNotFound";
-    userNotFound: null;
-} | {
-    __kind__: "other";
-    other: string;
-} | {
-    __kind__: "insufficientFunds";
-    insufficientFunds: null;
-};
-export interface WalletTransaction {
-    id: bigint;
-    transactionType: string;
-    note: string;
-    timestamp: bigint;
-    amount: number;
-    recipientLabel?: string;
+export interface WalletProfile {
+    balance: bigint;
+    kycStatus: KycStatus;
+    hasPin: boolean;
+}
+export interface SystemStats {
+    fullKycCount: bigint;
+    totalUsers: bigint;
+    totalBalance: bigint;
+    basicKycCount: bigint;
 }
 export interface Profile {
     expenses: Array<Expense>;
@@ -52,6 +40,25 @@ export interface Expense {
     note: string;
     category: string;
     amount: number;
+}
+export interface BudgetAllocation {
+    savingPct: number;
+    investingPct: number;
+    spendingPct: number;
+}
+export interface Transaction {
+    id: bigint;
+    transactionType: TransactionType;
+    transactionLabel: string;
+    note: string;
+    timestamp: bigint;
+    amount: bigint;
+}
+export interface WalletSummary {
+    principal: Principal;
+    balance: bigint;
+    kycStatus: KycStatus;
+    transactionCount: bigint;
 }
 export type UnlockCondition = {
     __kind__: "goalMet";
@@ -70,6 +77,16 @@ export interface SavingsGoal {
     targetAmount: number;
     currentAmount: number;
 }
+export enum KycStatus {
+    full = "full",
+    none = "none",
+    basic = "basic"
+}
+export enum TransactionType {
+    lockerTransfer = "lockerTransfer",
+    credit = "credit",
+    debit = "debit"
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -77,31 +94,33 @@ export enum UserRole {
 }
 export interface backendInterface {
     addExpense(amount: number, category: string, note: string): Promise<void>;
-    addFundsToWallet(_amount: number, _senderLabel: string | null, _note: string): Promise<void>;
+    addFundsToWallet(amount: bigint, transactionLabel: string): Promise<void>;
     addIncome(name: string, amount: number): Promise<void>;
     addSavingsGoal(name: string, target: number, deadline: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createWallet(): Promise<void>;
+    deductFromWallet(amount: bigint, transactionLabel: string): Promise<void>;
+    getAllWalletSummaries(): Promise<[Array<WalletSummary>, SystemStats]>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getExpenses(): Promise<Array<Expense>>;
     getInvestmentSuggestions(): Promise<Array<[string, number]>>;
+    getKYCStatus(): Promise<KycStatus>;
     getLockerStatus(): Promise<DigitalLocker>;
     getProfile(user: Principal): Promise<Profile>;
     getSavingsGoals(): Promise<Array<SavingsGoal>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
-    getWalletBalance(): Promise<number>;
-    getWalletTransactions(): Promise<Array<WalletTransaction>>;
+    getWalletBalance(): Promise<bigint>;
+    getWalletProfile(): Promise<WalletProfile>;
+    getWalletTransactions(): Promise<Array<Transaction>>;
     isCallerAdmin(): Promise<boolean>;
     requestUnlock(conditionType: string, goalIndex: bigint | null, periodDays: bigint | null): Promise<boolean>;
     saveCallerUserProfile(up: UserProfile): Promise<void>;
-    sendFundsFromWallet(recipient: string, amount: number, note: string): Promise<{
-        __kind__: "ok";
-        ok: WalletTransaction;
-    } | {
-        __kind__: "err";
-        err: SendFundsError;
-    }>;
     setAllocationSplit(spending: number, saving: number, investing: number): Promise<void>;
-    transferToLocker(amount: number, note: string): Promise<void>;
+    setWalletPIN(pin: string): Promise<void>;
+    submitBasicKYC(name: string, dob: string, phone: string, aadhaarLast4: string): Promise<void>;
+    submitFullKYC(address: string, photoIdRef: string): Promise<void>;
+    transferToLockerFromWallet(amount: bigint): Promise<void>;
     updateSavingsGoal(index: bigint, amount: number): Promise<void>;
+    verifyWalletPIN(pin: string): Promise<boolean>;
 }

@@ -89,11 +89,6 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface BudgetAllocation {
-    savingPct: number;
-    investingPct: number;
-    spendingPct: number;
-}
 export interface IncomeSource {
     name: string;
     amount: number;
@@ -103,23 +98,16 @@ export interface DigitalLocker {
     locked: boolean;
     conditionType?: UnlockCondition;
 }
-export type SendFundsError = {
-    __kind__: "userNotFound";
-    userNotFound: null;
-} | {
-    __kind__: "other";
-    other: string;
-} | {
-    __kind__: "insufficientFunds";
-    insufficientFunds: null;
-};
-export interface WalletTransaction {
-    id: bigint;
-    transactionType: string;
-    note: string;
-    timestamp: bigint;
-    amount: number;
-    recipientLabel?: string;
+export interface WalletProfile {
+    balance: bigint;
+    kycStatus: KycStatus;
+    hasPin: boolean;
+}
+export interface SystemStats {
+    fullKycCount: bigint;
+    totalUsers: bigint;
+    totalBalance: bigint;
+    basicKycCount: bigint;
 }
 export interface Profile {
     expenses: Array<Expense>;
@@ -134,6 +122,25 @@ export interface Expense {
     note: string;
     category: string;
     amount: number;
+}
+export interface BudgetAllocation {
+    savingPct: number;
+    investingPct: number;
+    spendingPct: number;
+}
+export interface Transaction {
+    id: bigint;
+    transactionType: TransactionType;
+    transactionLabel: string;
+    note: string;
+    timestamp: bigint;
+    amount: bigint;
+}
+export interface WalletSummary {
+    principal: Principal;
+    balance: bigint;
+    kycStatus: KycStatus;
+    transactionCount: bigint;
 }
 export type UnlockCondition = {
     __kind__: "goalMet";
@@ -152,6 +159,16 @@ export interface SavingsGoal {
     targetAmount: number;
     currentAmount: number;
 }
+export enum KycStatus {
+    full = "full",
+    none = "none",
+    basic = "basic"
+}
+export enum TransactionType {
+    lockerTransfer = "lockerTransfer",
+    credit = "credit",
+    debit = "debit"
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -160,35 +177,37 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addExpense(amount: number, category: string, note: string): Promise<void>;
-    addFundsToWallet(_amount: number, _senderLabel: string | null, _note: string): Promise<void>;
+    addFundsToWallet(amount: bigint, transactionLabel: string): Promise<void>;
     addIncome(name: string, amount: number): Promise<void>;
     addSavingsGoal(name: string, target: number, deadline: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    createWallet(): Promise<void>;
+    deductFromWallet(amount: bigint, transactionLabel: string): Promise<void>;
+    getAllWalletSummaries(): Promise<[Array<WalletSummary>, SystemStats]>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getExpenses(): Promise<Array<Expense>>;
     getInvestmentSuggestions(): Promise<Array<[string, number]>>;
+    getKYCStatus(): Promise<KycStatus>;
     getLockerStatus(): Promise<DigitalLocker>;
     getProfile(user: Principal): Promise<Profile>;
     getSavingsGoals(): Promise<Array<SavingsGoal>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
-    getWalletBalance(): Promise<number>;
-    getWalletTransactions(): Promise<Array<WalletTransaction>>;
+    getWalletBalance(): Promise<bigint>;
+    getWalletProfile(): Promise<WalletProfile>;
+    getWalletTransactions(): Promise<Array<Transaction>>;
     isCallerAdmin(): Promise<boolean>;
     requestUnlock(conditionType: string, goalIndex: bigint | null, periodDays: bigint | null): Promise<boolean>;
     saveCallerUserProfile(up: UserProfile): Promise<void>;
-    sendFundsFromWallet(recipient: string, amount: number, note: string): Promise<{
-        __kind__: "ok";
-        ok: WalletTransaction;
-    } | {
-        __kind__: "err";
-        err: SendFundsError;
-    }>;
     setAllocationSplit(spending: number, saving: number, investing: number): Promise<void>;
-    transferToLocker(amount: number, note: string): Promise<void>;
+    setWalletPIN(pin: string): Promise<void>;
+    submitBasicKYC(name: string, dob: string, phone: string, aadhaarLast4: string): Promise<void>;
+    submitFullKYC(address: string, photoIdRef: string): Promise<void>;
+    transferToLockerFromWallet(amount: bigint): Promise<void>;
     updateSavingsGoal(index: bigint, amount: number): Promise<void>;
+    verifyWalletPIN(pin: string): Promise<boolean>;
 }
-import type { BudgetAllocation as _BudgetAllocation, DigitalLocker as _DigitalLocker, Expense as _Expense, IncomeSource as _IncomeSource, Profile as _Profile, SavingsGoal as _SavingsGoal, SendFundsError as _SendFundsError, UnlockCondition as _UnlockCondition, UserProfile as _UserProfile, UserRole as _UserRole, WalletTransaction as _WalletTransaction } from "./declarations/backend.did.d.ts";
+import type { BudgetAllocation as _BudgetAllocation, DigitalLocker as _DigitalLocker, Expense as _Expense, IncomeSource as _IncomeSource, KycStatus as _KycStatus, Profile as _Profile, SavingsGoal as _SavingsGoal, Transaction as _Transaction, TransactionType as _TransactionType, UnlockCondition as _UnlockCondition, UserProfile as _UserProfile, UserRole as _UserRole, WalletProfile as _WalletProfile, WalletSummary as _WalletSummary } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
@@ -219,17 +238,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addFundsToWallet(arg0: number, arg1: string | null, arg2: string): Promise<void> {
+    async addFundsToWallet(arg0: bigint, arg1: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.addFundsToWallet(arg0, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg1), arg2);
+                const result = await this.actor.addFundsToWallet(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addFundsToWallet(arg0, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg1), arg2);
+            const result = await this.actor.addFundsToWallet(arg0, arg1);
             return result;
         }
     }
@@ -264,43 +283,91 @@ export class Backend implements backendInterface {
     async assignCallerUserRole(arg0: Principal, arg1: UserRole): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n2(this._uploadFile, this._downloadFile, arg1));
+                const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n2(this._uploadFile, this._downloadFile, arg1));
+            const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
             return result;
+        }
+    }
+    async createWallet(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.createWallet();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.createWallet();
+            return result;
+        }
+    }
+    async deductFromWallet(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deductFromWallet(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deductFromWallet(arg0, arg1);
+            return result;
+        }
+    }
+    async getAllWalletSummaries(): Promise<[Array<WalletSummary>, SystemStats]> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllWalletSummaries();
+                return [
+                    from_candid_vec_n3(this._uploadFile, this._downloadFile, result[0]),
+                    result[1]
+                ];
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllWalletSummaries();
+            return [
+                from_candid_vec_n3(this._uploadFile, this._downloadFile, result[0]),
+                result[1]
+            ];
         }
     }
     async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserProfile();
-                return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserProfile();
-            return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
         }
     }
     async getCallerUserRole(): Promise<UserRole> {
         if (this.processError) {
             try {
                 const result = await this.actor.getCallerUserRole();
-                return from_candid_UserRole_n5(this._uploadFile, this._downloadFile, result);
+                return from_candid_UserRole_n9(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getCallerUserRole();
-            return from_candid_UserRole_n5(this._uploadFile, this._downloadFile, result);
+            return from_candid_UserRole_n9(this._uploadFile, this._downloadFile, result);
         }
     }
     async getExpenses(): Promise<Array<Expense>> {
@@ -331,32 +398,46 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getKYCStatus(): Promise<KycStatus> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getKYCStatus();
+                return from_candid_KycStatus_n6(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getKYCStatus();
+            return from_candid_KycStatus_n6(this._uploadFile, this._downloadFile, result);
+        }
+    }
     async getLockerStatus(): Promise<DigitalLocker> {
         if (this.processError) {
             try {
                 const result = await this.actor.getLockerStatus();
-                return from_candid_DigitalLocker_n7(this._uploadFile, this._downloadFile, result);
+                return from_candid_DigitalLocker_n11(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getLockerStatus();
-            return from_candid_DigitalLocker_n7(this._uploadFile, this._downloadFile, result);
+            return from_candid_DigitalLocker_n11(this._uploadFile, this._downloadFile, result);
         }
     }
     async getProfile(arg0: Principal): Promise<Profile> {
         if (this.processError) {
             try {
                 const result = await this.actor.getProfile(arg0);
-                return from_candid_Profile_n13(this._uploadFile, this._downloadFile, result);
+                return from_candid_Profile_n17(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getProfile(arg0);
-            return from_candid_Profile_n13(this._uploadFile, this._downloadFile, result);
+            return from_candid_Profile_n17(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSavingsGoals(): Promise<Array<SavingsGoal>> {
@@ -377,17 +458,17 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getUserProfile(arg0);
-                return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+                return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getUserProfile(arg0);
-            return from_candid_opt_n4(this._uploadFile, this._downloadFile, result);
+            return from_candid_opt_n8(this._uploadFile, this._downloadFile, result);
         }
     }
-    async getWalletBalance(): Promise<number> {
+    async getWalletBalance(): Promise<bigint> {
         if (this.processError) {
             try {
                 const result = await this.actor.getWalletBalance();
@@ -401,18 +482,32 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async getWalletTransactions(): Promise<Array<WalletTransaction>> {
+    async getWalletProfile(): Promise<WalletProfile> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getWalletProfile();
+                return from_candid_WalletProfile_n19(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getWalletProfile();
+            return from_candid_WalletProfile_n19(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getWalletTransactions(): Promise<Array<Transaction>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getWalletTransactions();
-                return from_candid_vec_n15(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getWalletTransactions();
-            return from_candid_vec_n15(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n21(this._uploadFile, this._downloadFile, result);
         }
     }
     async isCallerAdmin(): Promise<boolean> {
@@ -432,14 +527,14 @@ export class Backend implements backendInterface {
     async requestUnlock(arg0: string, arg1: bigint | null, arg2: bigint | null): Promise<boolean> {
         if (this.processError) {
             try {
-                const result = await this.actor.requestUnlock(arg0, to_candid_opt_n19(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n19(this._uploadFile, this._downloadFile, arg2));
+                const result = await this.actor.requestUnlock(arg0, to_candid_opt_n26(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n26(this._uploadFile, this._downloadFile, arg2));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.requestUnlock(arg0, to_candid_opt_n19(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n19(this._uploadFile, this._downloadFile, arg2));
+            const result = await this.actor.requestUnlock(arg0, to_candid_opt_n26(this._uploadFile, this._downloadFile, arg1), to_candid_opt_n26(this._uploadFile, this._downloadFile, arg2));
             return result;
         }
     }
@@ -457,26 +552,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async sendFundsFromWallet(arg0: string, arg1: number, arg2: string): Promise<{
-        __kind__: "ok";
-        ok: WalletTransaction;
-    } | {
-        __kind__: "err";
-        err: SendFundsError;
-    }> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.sendFundsFromWallet(arg0, arg1, arg2);
-                return from_candid_variant_n20(this._uploadFile, this._downloadFile, result);
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.sendFundsFromWallet(arg0, arg1, arg2);
-            return from_candid_variant_n20(this._uploadFile, this._downloadFile, result);
-        }
-    }
     async setAllocationSplit(arg0: number, arg1: number, arg2: number): Promise<void> {
         if (this.processError) {
             try {
@@ -491,17 +566,59 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async transferToLocker(arg0: number, arg1: string): Promise<void> {
+    async setWalletPIN(arg0: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.transferToLocker(arg0, arg1);
+                const result = await this.actor.setWalletPIN(arg0);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.transferToLocker(arg0, arg1);
+            const result = await this.actor.setWalletPIN(arg0);
+            return result;
+        }
+    }
+    async submitBasicKYC(arg0: string, arg1: string, arg2: string, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitBasicKYC(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitBasicKYC(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async submitFullKYC(arg0: string, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitFullKYC(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitFullKYC(arg0, arg1);
+            return result;
+        }
+    }
+    async transferToLockerFromWallet(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.transferToLockerFromWallet(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.transferToLockerFromWallet(arg0);
             return result;
         }
     }
@@ -519,38 +636,73 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async verifyWalletPIN(arg0: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.verifyWalletPIN(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.verifyWalletPIN(arg0);
+            return result;
+        }
+    }
 }
-function from_candid_DigitalLocker_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DigitalLocker): DigitalLocker {
-    return from_candid_record_n8(_uploadFile, _downloadFile, value);
+function from_candid_DigitalLocker_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _DigitalLocker): DigitalLocker {
+    return from_candid_record_n12(_uploadFile, _downloadFile, value);
 }
-function from_candid_Profile_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Profile): Profile {
-    return from_candid_record_n14(_uploadFile, _downloadFile, value);
+function from_candid_KycStatus_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _KycStatus): KycStatus {
+    return from_candid_variant_n7(_uploadFile, _downloadFile, value);
 }
-function from_candid_SendFundsError_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SendFundsError): SendFundsError {
-    return from_candid_variant_n22(_uploadFile, _downloadFile, value);
+function from_candid_Profile_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Profile): Profile {
+    return from_candid_record_n18(_uploadFile, _downloadFile, value);
 }
-function from_candid_UnlockCondition_n11(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UnlockCondition): UnlockCondition {
-    return from_candid_variant_n12(_uploadFile, _downloadFile, value);
+function from_candid_TransactionType_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TransactionType): TransactionType {
+    return from_candid_variant_n25(_uploadFile, _downloadFile, value);
 }
-function from_candid_UserRole_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
-    return from_candid_variant_n6(_uploadFile, _downloadFile, value);
+function from_candid_Transaction_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Transaction): Transaction {
+    return from_candid_record_n23(_uploadFile, _downloadFile, value);
 }
-function from_candid_WalletTransaction_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _WalletTransaction): WalletTransaction {
-    return from_candid_record_n17(_uploadFile, _downloadFile, value);
+function from_candid_UnlockCondition_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UnlockCondition): UnlockCondition {
+    return from_candid_variant_n16(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UnlockCondition]): UnlockCondition | null {
-    return value.length === 0 ? null : from_candid_UnlockCondition_n11(_uploadFile, _downloadFile, value[0]);
+function from_candid_UserRole_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
+    return from_candid_variant_n10(_uploadFile, _downloadFile, value);
 }
-function from_candid_opt_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [string]): string | null {
+function from_candid_WalletProfile_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _WalletProfile): WalletProfile {
+    return from_candid_record_n20(_uploadFile, _downloadFile, value);
+}
+function from_candid_WalletSummary_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _WalletSummary): WalletSummary {
+    return from_candid_record_n5(_uploadFile, _downloadFile, value);
+}
+function from_candid_opt_n13(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
+function from_candid_opt_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UnlockCondition]): UnlockCondition | null {
+    return value.length === 0 ? null : from_candid_UnlockCondition_n15(_uploadFile, _downloadFile, value[0]);
+}
+function from_candid_opt_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_UserProfile]): UserProfile | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [bigint]): bigint | null {
-    return value.length === 0 ? null : value[0];
+function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    unlockDate: [] | [bigint];
+    locked: boolean;
+    conditionType: [] | [_UnlockCondition];
+}): {
+    unlockDate?: bigint;
+    locked: boolean;
+    conditionType?: UnlockCondition;
+} {
+    return {
+        unlockDate: record_opt_to_undefined(from_candid_opt_n13(_uploadFile, _downloadFile, value.unlockDate)),
+        locked: value.locked,
+        conditionType: record_opt_to_undefined(from_candid_opt_n14(_uploadFile, _downloadFile, value.conditionType))
+    };
 }
-function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     expenses: Array<_Expense>;
     digitalLocker: _DigitalLocker;
     userProfile: _UserProfile;
@@ -567,53 +719,80 @@ function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         expenses: value.expenses,
-        digitalLocker: from_candid_DigitalLocker_n7(_uploadFile, _downloadFile, value.digitalLocker),
+        digitalLocker: from_candid_DigitalLocker_n11(_uploadFile, _downloadFile, value.digitalLocker),
         userProfile: value.userProfile,
         allocation: value.allocation,
         savingsGoals: value.savingsGoals,
         incomeSources: value.incomeSources
     };
 }
-function from_candid_record_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    balance: bigint;
+    kycStatus: _KycStatus;
+    hasPin: boolean;
+}): {
+    balance: bigint;
+    kycStatus: KycStatus;
+    hasPin: boolean;
+} {
+    return {
+        balance: value.balance,
+        kycStatus: from_candid_KycStatus_n6(_uploadFile, _downloadFile, value.kycStatus),
+        hasPin: value.hasPin
+    };
+}
+function from_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
-    transactionType: string;
+    transactionType: _TransactionType;
+    transactionLabel: string;
     note: string;
     timestamp: bigint;
-    amount: number;
-    recipientLabel: [] | [string];
+    amount: bigint;
 }): {
     id: bigint;
-    transactionType: string;
+    transactionType: TransactionType;
+    transactionLabel: string;
     note: string;
     timestamp: bigint;
-    amount: number;
-    recipientLabel?: string;
+    amount: bigint;
 } {
     return {
         id: value.id,
-        transactionType: value.transactionType,
+        transactionType: from_candid_TransactionType_n24(_uploadFile, _downloadFile, value.transactionType),
+        transactionLabel: value.transactionLabel,
         note: value.note,
         timestamp: value.timestamp,
-        amount: value.amount,
-        recipientLabel: record_opt_to_undefined(from_candid_opt_n18(_uploadFile, _downloadFile, value.recipientLabel))
+        amount: value.amount
     };
 }
-function from_candid_record_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    unlockDate: [] | [bigint];
-    locked: boolean;
-    conditionType: [] | [_UnlockCondition];
+function from_candid_record_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    principal: Principal;
+    balance: bigint;
+    kycStatus: _KycStatus;
+    transactionCount: bigint;
 }): {
-    unlockDate?: bigint;
-    locked: boolean;
-    conditionType?: UnlockCondition;
+    principal: Principal;
+    balance: bigint;
+    kycStatus: KycStatus;
+    transactionCount: bigint;
 } {
     return {
-        unlockDate: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.unlockDate)),
-        locked: value.locked,
-        conditionType: record_opt_to_undefined(from_candid_opt_n10(_uploadFile, _downloadFile, value.conditionType))
+        principal: value.principal,
+        balance: value.balance,
+        kycStatus: from_candid_KycStatus_n6(_uploadFile, _downloadFile, value.kycStatus),
+        transactionCount: value.transactionCount
     };
 }
-function from_candid_variant_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n10(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    admin: null;
+} | {
+    user: null;
+} | {
+    guest: null;
+}): UserRole {
+    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+}
+function from_candid_variant_n16(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     goalMet: bigint;
 } | {
     timePeriod: bigint;
@@ -632,74 +811,37 @@ function from_candid_variant_n12(_uploadFile: (file: ExternalBlob) => Promise<Ui
         timePeriod: value.timePeriod
     } : value;
 }
-function from_candid_variant_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    ok: _WalletTransaction;
+function from_candid_variant_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    lockerTransfer: null;
 } | {
-    err: _SendFundsError;
-}): {
-    __kind__: "ok";
-    ok: WalletTransaction;
+    credit: null;
 } | {
-    __kind__: "err";
-    err: SendFundsError;
-} {
-    return "ok" in value ? {
-        __kind__: "ok",
-        ok: from_candid_WalletTransaction_n16(_uploadFile, _downloadFile, value.ok)
-    } : "err" in value ? {
-        __kind__: "err",
-        err: from_candid_SendFundsError_n21(_uploadFile, _downloadFile, value.err)
-    } : value;
+    debit: null;
+}): TransactionType {
+    return "lockerTransfer" in value ? TransactionType.lockerTransfer : "credit" in value ? TransactionType.credit : "debit" in value ? TransactionType.debit : value;
 }
-function from_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    userNotFound: null;
+function from_candid_variant_n7(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    full: null;
 } | {
-    other: string;
+    none: null;
 } | {
-    insufficientFunds: null;
-}): {
-    __kind__: "userNotFound";
-    userNotFound: null;
-} | {
-    __kind__: "other";
-    other: string;
-} | {
-    __kind__: "insufficientFunds";
-    insufficientFunds: null;
-} {
-    return "userNotFound" in value ? {
-        __kind__: "userNotFound",
-        userNotFound: value.userNotFound
-    } : "other" in value ? {
-        __kind__: "other",
-        other: value.other
-    } : "insufficientFunds" in value ? {
-        __kind__: "insufficientFunds",
-        insufficientFunds: value.insufficientFunds
-    } : value;
+    basic: null;
+}): KycStatus {
+    return "full" in value ? KycStatus.full : "none" in value ? KycStatus.none : "basic" in value ? KycStatus.basic : value;
 }
-function from_candid_variant_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
-    admin: null;
-} | {
-    user: null;
-} | {
-    guest: null;
-}): UserRole {
-    return "admin" in value ? UserRole.admin : "user" in value ? UserRole.user : "guest" in value ? UserRole.guest : value;
+function from_candid_vec_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Transaction>): Array<Transaction> {
+    return value.map((x)=>from_candid_Transaction_n22(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n15(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_WalletTransaction>): Array<WalletTransaction> {
-    return value.map((x)=>from_candid_WalletTransaction_n16(_uploadFile, _downloadFile, x));
+function from_candid_vec_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_WalletSummary>): Array<WalletSummary> {
+    return value.map((x)=>from_candid_WalletSummary_n4(_uploadFile, _downloadFile, x));
 }
-function to_candid_UserRole_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
-    return to_candid_variant_n3(_uploadFile, _downloadFile, value);
+function to_candid_UserRole_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
+    return to_candid_variant_n2(_uploadFile, _downloadFile, value);
 }
-function to_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: string | null): [] | [string] {
+function to_candid_opt_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
     return value === null ? candid_none() : candid_some(value);
 }
-function to_candid_opt_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: bigint | null): [] | [bigint] {
-    return value === null ? candid_none() : candid_some(value);
-}
-function to_candid_variant_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
+function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
     admin: null;
 } | {
     user: null;

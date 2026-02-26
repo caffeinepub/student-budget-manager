@@ -8,12 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Wallet, PiggyBank, TrendingUp, Plus, Target, ChevronRight,
   Settings, LogOut, ShoppingBag, Bus, BookOpen, Gamepad2, Heart, MoreHorizontal,
-  ArrowRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
-function formatINR(amount: number): string {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(amount);
+function formatINR(amount: number | bigint): string {
+  const num = typeof amount === 'bigint' ? Number(amount) : amount;
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(num);
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -47,7 +47,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useGetProfile();
   const { data: lockerStatus } = useGetLockerStatus();
-  const { data: walletBalance = 0 } = useGetWalletBalance();
+  const { data: walletBalance } = useGetWalletBalance();
 
   const handleLogout = async () => {
     await clear();
@@ -58,7 +58,8 @@ export default function Dashboard() {
     return (
       <div className="page-content space-y-4">
         <Skeleton className="h-16 w-full rounded-2xl" />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-28 rounded-2xl" />
           <Skeleton className="h-28 rounded-2xl" />
           <Skeleton className="h-28 rounded-2xl" />
           <Skeleton className="h-28 rounded-2xl" />
@@ -99,6 +100,7 @@ export default function Dashboard() {
   const recentExpenses = [...profile.expenses].reverse().slice(0, 5);
 
   const isLocked = lockerStatus?.locked ?? profile.digitalLocker.locked;
+  const walletAmt = walletBalance !== undefined ? Number(walletBalance) : null;
 
   return (
     <div className="page-content space-y-5 animate-slide-up">
@@ -146,8 +148,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Balance Cards - 2x2 grid */}
+      <div className="grid grid-cols-2 gap-3">
         <BalanceCard
           title="Spend"
           amount={spendingAmt}
@@ -170,25 +172,14 @@ export default function Dashboard() {
           gradientClass="gradient-invest"
           icon={<TrendingUp size={14} />}
         />
+        <BalanceCard
+          title="Wallet"
+          amount={walletAmt ?? 0}
+          subtitle={walletAmt !== null ? 'In-app wallet' : 'Not set up'}
+          gradientClass="gradient-wallet"
+          icon={<Wallet size={14} />}
+        />
       </div>
-
-      {/* Wallet Balance Card */}
-      <button
-        onClick={() => router.navigate({ to: '/wallet' })}
-        className="w-full bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
-      >
-        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">
-          <Wallet size={18} className="text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Online Wallet</p>
-          <p className="text-lg font-bold text-foreground">₹{formatINR(walletBalance)}</p>
-        </div>
-        <div className="flex items-center gap-1 text-primary">
-          <span className="text-xs font-semibold">Open</span>
-          <ArrowRight size={14} />
-        </div>
-      </button>
 
       {/* Quick Actions */}
       <div>
@@ -219,18 +210,6 @@ export default function Dashboard() {
             </div>
           </button>
           <button
-            onClick={() => router.navigate({ to: '/wallet' })}
-            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
-          >
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Wallet size={16} className="text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">My Wallet</p>
-              <p className="text-[10px] text-muted-foreground">Manage funds</p>
-            </div>
-          </button>
-          <button
             onClick={() => router.navigate({ to: '/invest' })}
             className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
           >
@@ -240,6 +219,18 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-semibold">Invest</p>
               <p className="text-[10px] text-muted-foreground">Grow money</p>
+            </div>
+          </button>
+          <button
+            onClick={() => router.navigate({ to: '/wallet' })}
+            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center">
+              <Wallet size={16} className="text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">My Wallet</p>
+              <p className="text-[10px] text-muted-foreground">Pay & transfer</p>
             </div>
           </button>
         </div>
@@ -291,9 +282,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Remaining Budget</span>
-            <span className={`font-semibold ${spendingAmt - totalExpenses >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ₹{formatINR(Math.max(0, spendingAmt - totalExpenses))}
-            </span>
+            <span className="font-semibold text-success">₹{formatINR(Math.max(0, spendingAmt - totalExpenses))}</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2 mt-2">
             <div
@@ -314,14 +303,14 @@ export default function Dashboard() {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-4">
+      <div className="pb-6 text-center">
         <p className="text-[10px] text-muted-foreground">
           Built with ❤️ using{' '}
           <a
-            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== 'undefined' ? window.location.hostname : 'student-budget-manager')}`}
+            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary font-medium hover:underline"
+            className="text-primary font-medium"
           >
             caffeine.ai
           </a>{' '}

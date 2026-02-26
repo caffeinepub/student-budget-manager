@@ -1,47 +1,168 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T08:01:50.842Z",
+  "generatedAt": "2026-02-26T08:38:19.443Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
-    "implemented": 1,
+    "total": 11,
+    "implemented": 8,
     "items": [
       {
-        "id": "REQ-18",
-        "summary": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen (frontend/src/components/Wallet.tsx) that allows users to manually enter an amount and sender label to simulate receiving money. The collapsible form, its trigger button, and any related state variables should be deleted. The wallet balance display, transaction history, Transfer to Locker section, QR code (Receive modal), and Scan & Pay functionality must remain untouched.",
+        "id": "REQ-25",
+        "summary": "Extend the backend Motoko actor to add wallet data structures and stable storage per user: wallet balance (Nat), a wallet PIN (hashed Text), KYC status (variant: #none, #basic, #full), KYC details record (name, date of birth, phone, aadhaar last 4 digits for basic; full adds address and photo ID reference), and a wallet transaction log (array of records with id, amount, type variant (#credit, #debit, #lockerTransfer), label, note, timestamp).",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-26",
+        "summary": "Implement backend update functions: createWallet (initialises wallet fields if not already created), addFundsToWallet (amount: Nat, label: Text) increments balance and appends a #credit transaction, deductFromWallet (amount: Nat, label: Text) checks sufficient balance then decrements and appends a #debit transaction, transferToLockerFromWallet (amount: Nat) moves funds from wallet to savings locker and records a #lockerTransfer transaction, setWalletPIN (pin: Text) stores a hashed PIN, verifyWalletPIN (pin: Text) returns Bool, submitBasicKYC (name, dob, phone, aadhaarLast4: Text) updates KYC record and sets status to #basic, submitFullKYC (address, photoIdRef: Text) updates record and sets status to #full.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-27",
+        "summary": "Implement backend query functions: getWalletBalance returns the caller's current wallet balance as Nat, getWalletTransactions returns the full transaction log array for the caller, getKYCStatus returns the caller's current KYC status variant, getWalletProfile returns a combined record of balance, KYC status, and whether a PIN is set.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-28",
+        "summary": "Add corresponding React Query hooks in frontend/src/hooks/useQueries.ts for all new wallet backend functions: useGetWalletProfile, useGetWalletBalance, useGetWalletTransactions, useGetKYCStatus, useCreateWallet, useAddFundsToWallet, useDeductFromWallet, useTransferToLockerFromWallet, useSetWalletPIN, useVerifyWalletPIN, useSubmitBasicKYC, useSubmitFullKYC.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/Wallet.tsx",
           "frontend/src/hooks/useQueries.ts"
         ],
         "matchedFiles": [
-          "frontend/src/components/Wallet.tsx",
           "frontend/src/hooks/useQueries.ts"
         ]
       },
       {
-        "id": "REQ-19",
-        "summary": "Remove or disable the addFundsToWallet public function from the backend actor (backend/main.mo) since it will no longer be called from the frontend. If removing causes downstream type errors in other functions, stub it out with a deprecation comment instead.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
+        "id": "REQ-29",
+        "summary": "Create a new Wallet screen component at frontend/src/components/Wallet.tsx. The screen must include: (1) A prominent gradient balance card at the top showing the wallet balance in INR with a 'Top Up' / 'Add Money' button. (2) A horizontal row of quick-action buttons: Add Money, Pay / Send, Transfer to Locker, and KYC. (3) An 'Add Money' collapsible section with amount input and a source label field (e.g., Cash, Card, UPI) that calls addFundsToWallet on submit. (4) A 'Pay / Send' section with amount and recipient label inputs that calls deductFromWallet. (5) A 'Transfer to Locker' section with amount input that calls transferToLockerFromWallet. (6) A scrollable transaction history grouped by date, each entry showing amount, type badge (Credit / Debit / Locker), label, and timestamp. Show success and error toasts for all actions.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/Wallet.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/Wallet.tsx"
+        ]
+      },
+      {
+        "id": "REQ-30",
+        "summary": "Create a KYC flow inside the Wallet screen (or a dedicated modal/sub-page). Show a KYC status badge (Not Verified / Basic KYC / Full KYC). Provide a 'Complete Basic KYC' form collecting full name, date of birth, phone number, and last 4 digits of Aadhaar, which calls submitBasicKYC. Provide a 'Upgrade to Full KYC' form collecting address and a photo ID reference (text field), which calls submitFullKYC. Display which wallet features are restricted until KYC is completed (e.g., transaction limits note).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/KYCFlow.tsx",
+          "frontend/src/components/Wallet.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/KYCFlow.tsx",
+          "frontend/src/components/Wallet.tsx"
+        ]
+      },
+      {
+        "id": "REQ-31",
+        "summary": "Create a Wallet PIN setup and verification flow. On first wallet access, if no PIN is set, prompt the user to create a 4-digit PIN using a PIN-pad UI (calls setWalletPIN). On subsequent wallet opens within the same session, show a PIN entry screen that calls verifyWalletPIN before displaying the wallet balance and actions. Include a 'Forgot PIN' notice explaining they must re-onboard (no backend reset, keeps it simple for v1). Show an error message after an incorrect PIN entry.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/PINPad.tsx",
+          "frontend/src/components/WalletPINSetup.tsx",
+          "frontend/src/components/WalletPINVerify.tsx",
+          "frontend/src/components/Wallet.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/PINPad.tsx",
+          "frontend/src/components/WalletPINSetup.tsx",
+          "frontend/src/components/WalletPINVerify.tsx",
+          "frontend/src/components/Wallet.tsx"
+        ]
+      },
+      {
+        "id": "REQ-32",
+        "summary": "Add a Wallet tab to the bottom navigation bar in frontend/src/components/BottomNavigation.tsx with a wallet icon, making it a sixth navigation item alongside Dashboard, Expenses, Goals, Invest, and Calculator. Register the /wallet route in frontend/src/App.tsx pointing to the Wallet screen component.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/BottomNavigation.tsx",
+          "frontend/src/App.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/BottomNavigation.tsx",
+          "frontend/src/App.tsx"
+        ]
+      },
+      {
+        "id": "REQ-33",
+        "summary": "Update the Dashboard screen (frontend/src/components/Dashboard.tsx) to include a Wallet balance card alongside the Spending, Saving, and Investment cards, and add a 'Go to Wallet' quick-action button in the quick-actions row.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/Dashboard.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/Dashboard.tsx"
+        ]
+      },
+      {
+        "id": "REQ-34",
+        "summary": "Create a simple Admin Panel screen at frontend/src/components/AdminPanel.tsx, accessible via a hidden route /admin. The panel must display: a list of all registered user principals with their wallet balance and KYC status (using a new backend query getAllWalletSummaries restricted to a hardcoded admin principal), the ability to view any user's transaction count, and a read-only system stats section showing total users, total wallet balance in the system, and count of basic vs full KYC users. Add the corresponding getAllWalletSummaries backend query that returns this aggregated data only when called by the designated admin principal.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminPanel.tsx",
+          "frontend/src/App.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/AdminPanel.tsx",
+          "frontend/src/App.tsx"
+        ]
+      },
+      {
+        "id": "REQ-35",
+        "summary": "Display an in-app legal and compliance notice on the Wallet screen and KYC screens. Show a brief, student-friendly disclaimer noting: this is a simulated in-app wallet for educational use, real money transfers require RBI-regulated PPI (Prepaid Payment Instrument) licensing in India, Aadhaar data collected is stored only on-device / in-app and is not transmitted to third parties, and users must be 18+ or have guardian consent for full KYC. This notice should appear as a collapsible info card.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/ComplianceNotice.tsx",
+          "frontend/src/components/Wallet.tsx",
+          "frontend/src/components/KYCFlow.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/ComplianceNotice.tsx",
+          "frontend/src/components/Wallet.tsx",
+          "frontend/src/components/KYCFlow.tsx"
+        ]
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
+    "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/src/App.tsx",
     "frontend/src/backend.d.ts",
     "frontend/src/backend.ts",
+    "frontend/src/components/AdminPanel.tsx",
+    "frontend/src/components/BottomNavigation.tsx",
+    "frontend/src/components/ComplianceNotice.tsx",
+    "frontend/src/components/Dashboard.tsx",
+    "frontend/src/components/KYCFlow.tsx",
+    "frontend/src/components/PINPad.tsx",
     "frontend/src/components/Wallet.tsx",
+    "frontend/src/components/WalletPINSetup.tsx",
+    "frontend/src/components/WalletPINVerify.tsx",
+    "frontend/src/declarations/backend.did.d.ts",
+    "frontend/src/declarations/backend.did.js",
     "frontend/src/hooks/useQueries.ts",
+    "frontend/src/index.css",
+    "frontend/tailwind.config.js",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

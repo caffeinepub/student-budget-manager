@@ -27,6 +27,9 @@ export interface Expense {
   'amount' : number,
 }
 export interface IncomeSource { 'name' : string, 'amount' : number }
+export type KycStatus = { 'full' : null } |
+  { 'none' : null } |
+  { 'basic' : null };
 export interface Profile {
   'expenses' : Array<Expense>,
   'digitalLocker' : DigitalLocker,
@@ -42,54 +45,78 @@ export interface SavingsGoal {
   'targetAmount' : number,
   'currentAmount' : number,
 }
-export type SendFundsError = { 'userNotFound' : null } |
-  { 'other' : string } |
-  { 'insufficientFunds' : null };
+export interface SystemStats {
+  'fullKycCount' : bigint,
+  'totalUsers' : bigint,
+  'totalBalance' : bigint,
+  'basicKycCount' : bigint,
+}
+export interface Transaction {
+  'id' : bigint,
+  'transactionType' : TransactionType,
+  'transactionLabel' : string,
+  'note' : string,
+  'timestamp' : bigint,
+  'amount' : bigint,
+}
+export type TransactionType = { 'lockerTransfer' : null } |
+  { 'credit' : null } |
+  { 'debit' : null };
 export type UnlockCondition = { 'goalMet' : bigint } |
   { 'timePeriod' : bigint };
 export interface UserProfile { 'displayName' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
-export interface WalletTransaction {
-  'id' : bigint,
-  'transactionType' : string,
-  'note' : string,
-  'timestamp' : bigint,
-  'amount' : number,
-  'recipientLabel' : [] | [string],
+export interface WalletProfile {
+  'balance' : bigint,
+  'kycStatus' : KycStatus,
+  'hasPin' : boolean,
+}
+export interface WalletSummary {
+  'principal' : Principal,
+  'balance' : bigint,
+  'kycStatus' : KycStatus,
+  'transactionCount' : bigint,
 }
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addExpense' : ActorMethod<[number, string, string], undefined>,
-  'addFundsToWallet' : ActorMethod<[number, [] | [string], string], undefined>,
+  'addFundsToWallet' : ActorMethod<[bigint, string], undefined>,
   'addIncome' : ActorMethod<[string, number], undefined>,
   'addSavingsGoal' : ActorMethod<[string, number, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createWallet' : ActorMethod<[], undefined>,
+  'deductFromWallet' : ActorMethod<[bigint, string], undefined>,
+  'getAllWalletSummaries' : ActorMethod<
+    [],
+    [Array<WalletSummary>, SystemStats]
+  >,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getExpenses' : ActorMethod<[], Array<Expense>>,
   'getInvestmentSuggestions' : ActorMethod<[], Array<[string, number]>>,
+  'getKYCStatus' : ActorMethod<[], KycStatus>,
   'getLockerStatus' : ActorMethod<[], DigitalLocker>,
   'getProfile' : ActorMethod<[Principal], Profile>,
   'getSavingsGoals' : ActorMethod<[], Array<SavingsGoal>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
-  'getWalletBalance' : ActorMethod<[], number>,
-  'getWalletTransactions' : ActorMethod<[], Array<WalletTransaction>>,
+  'getWalletBalance' : ActorMethod<[], bigint>,
+  'getWalletProfile' : ActorMethod<[], WalletProfile>,
+  'getWalletTransactions' : ActorMethod<[], Array<Transaction>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'requestUnlock' : ActorMethod<
     [string, [] | [bigint], [] | [bigint]],
     boolean
   >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'sendFundsFromWallet' : ActorMethod<
-    [string, number, string],
-    { 'ok' : WalletTransaction } |
-      { 'err' : SendFundsError }
-  >,
   'setAllocationSplit' : ActorMethod<[number, number, number], undefined>,
-  'transferToLocker' : ActorMethod<[number, string], undefined>,
+  'setWalletPIN' : ActorMethod<[string], undefined>,
+  'submitBasicKYC' : ActorMethod<[string, string, string, string], undefined>,
+  'submitFullKYC' : ActorMethod<[string, string], undefined>,
+  'transferToLockerFromWallet' : ActorMethod<[bigint], undefined>,
   'updateSavingsGoal' : ActorMethod<[bigint, number], undefined>,
+  'verifyWalletPIN' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

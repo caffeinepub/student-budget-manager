@@ -1,4 +1,4 @@
-import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet, redirect } from '@tanstack/react-router';
+import { RouterProvider, createRouter, createRoute, createRootRoute, Outlet } from '@tanstack/react-router';
 import { useInternetIdentity } from './hooks/useInternetIdentity';
 import { useGetCallerUserProfile } from './hooks/useQueries';
 import Layout from './components/Layout';
@@ -8,9 +8,10 @@ import ExpenseTracker from './components/ExpenseTracker';
 import SavingsGoalTracker from './components/SavingsGoalTracker';
 import InvestmentSuggestions from './components/InvestmentSuggestions';
 import BudgetCalculator from './components/BudgetCalculator';
-import WalletPage from './components/Wallet';
 import LoginPage from './components/LoginPage';
 import ProfileSetup from './components/ProfileSetup';
+import Wallet from './components/Wallet';
+import AdminPanel from './components/AdminPanel';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from 'next-themes';
 
@@ -65,6 +66,12 @@ const walletRoute = createRoute({
   component: WalletGuard,
 });
 
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  component: AdminGuard,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   onboardingRoute,
@@ -73,6 +80,7 @@ const routeTree = rootRoute.addChildren([
   investRoute,
   calculatorRoute,
   walletRoute,
+  adminRoute,
 ]);
 
 const router = createRouter({ routeTree });
@@ -83,7 +91,7 @@ declare module '@tanstack/react-router' {
   }
 }
 
-function DashboardGuard() {
+function AuthGuard({ children }: { children: React.ReactNode }) {
   const { identity, isInitializing } = useInternetIdentity();
   const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
 
@@ -106,33 +114,31 @@ function DashboardGuard() {
     return <ProfileSetup />;
   }
 
-  return <Dashboard />;
+  return <>{children}</>;
+}
+
+function DashboardGuard() {
+  return (
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
+  );
 }
 
 function WalletGuard() {
-  const { identity, isInitializing } = useInternetIdentity();
-  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+  return (
+    <AuthGuard>
+      <Wallet />
+    </AuthGuard>
+  );
+}
 
-  if (isInitializing || profileLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!identity) {
-    return <LoginPage />;
-  }
-
-  if (isFetched && userProfile === null) {
-    return <ProfileSetup />;
-  }
-
-  return <WalletPage />;
+function AdminGuard() {
+  return (
+    <AuthGuard>
+      <AdminPanel />
+    </AuthGuard>
+  );
 }
 
 export default function App() {

@@ -69,6 +69,10 @@ export default {
           DEFAULT: 'oklch(var(--invest))',
           foreground: 'oklch(var(--invest-foreground))'
         },
+        wallet: {
+          DEFAULT: 'oklch(var(--wallet))',
+          foreground: 'oklch(var(--wallet-foreground))'
+        },
         chart: {
           1: 'oklch(var(--chart-1))',
           2: 'oklch(var(--chart-2))',
