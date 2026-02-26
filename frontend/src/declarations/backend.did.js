@@ -53,10 +53,28 @@ export const Profile = IDL.Record({
   'savingsGoals' : IDL.Vec(SavingsGoal),
   'incomeSources' : IDL.Vec(IncomeSource),
 });
+export const WalletTransaction = IDL.Record({
+  'id' : IDL.Nat,
+  'transactionType' : IDL.Text,
+  'note' : IDL.Text,
+  'timestamp' : IDL.Int,
+  'amount' : IDL.Float64,
+  'recipientLabel' : IDL.Opt(IDL.Text),
+});
+export const SendFundsError = IDL.Variant({
+  'userNotFound' : IDL.Null,
+  'other' : IDL.Text,
+  'insufficientFunds' : IDL.Null,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addExpense' : IDL.Func([IDL.Float64, IDL.Text, IDL.Text], [], []),
+  'addFundsToWallet' : IDL.Func(
+      [IDL.Float64, IDL.Opt(IDL.Text), IDL.Text],
+      [],
+      [],
+    ),
   'addIncome' : IDL.Func([IDL.Text, IDL.Float64], [], []),
   'addSavingsGoal' : IDL.Func([IDL.Text, IDL.Float64, IDL.Int], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -76,6 +94,12 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'getWalletBalance' : IDL.Func([], [IDL.Float64], ['query']),
+  'getWalletTransactions' : IDL.Func(
+      [],
+      [IDL.Vec(WalletTransaction)],
+      ['query'],
+    ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'requestUnlock' : IDL.Func(
       [IDL.Text, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
@@ -83,11 +107,17 @@ export const idlService = IDL.Service({
       [],
     ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'sendFundsFromWallet' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Text],
+      [IDL.Variant({ 'ok' : WalletTransaction, 'err' : SendFundsError })],
+      [],
+    ),
   'setAllocationSplit' : IDL.Func(
       [IDL.Float64, IDL.Float64, IDL.Float64],
       [],
       [],
     ),
+  'transferToLocker' : IDL.Func([IDL.Float64, IDL.Text], [], []),
   'updateSavingsGoal' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
 });
 
@@ -139,10 +169,28 @@ export const idlFactory = ({ IDL }) => {
     'savingsGoals' : IDL.Vec(SavingsGoal),
     'incomeSources' : IDL.Vec(IncomeSource),
   });
+  const WalletTransaction = IDL.Record({
+    'id' : IDL.Nat,
+    'transactionType' : IDL.Text,
+    'note' : IDL.Text,
+    'timestamp' : IDL.Int,
+    'amount' : IDL.Float64,
+    'recipientLabel' : IDL.Opt(IDL.Text),
+  });
+  const SendFundsError = IDL.Variant({
+    'userNotFound' : IDL.Null,
+    'other' : IDL.Text,
+    'insufficientFunds' : IDL.Null,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addExpense' : IDL.Func([IDL.Float64, IDL.Text, IDL.Text], [], []),
+    'addFundsToWallet' : IDL.Func(
+        [IDL.Float64, IDL.Opt(IDL.Text), IDL.Text],
+        [],
+        [],
+      ),
     'addIncome' : IDL.Func([IDL.Text, IDL.Float64], [], []),
     'addSavingsGoal' : IDL.Func([IDL.Text, IDL.Float64, IDL.Int], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -162,6 +210,12 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'getWalletBalance' : IDL.Func([], [IDL.Float64], ['query']),
+    'getWalletTransactions' : IDL.Func(
+        [],
+        [IDL.Vec(WalletTransaction)],
+        ['query'],
+      ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'requestUnlock' : IDL.Func(
         [IDL.Text, IDL.Opt(IDL.Nat), IDL.Opt(IDL.Nat)],
@@ -169,11 +223,17 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'sendFundsFromWallet' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Text],
+        [IDL.Variant({ 'ok' : WalletTransaction, 'err' : SendFundsError })],
+        [],
+      ),
     'setAllocationSplit' : IDL.Func(
         [IDL.Float64, IDL.Float64, IDL.Float64],
         [],
         [],
       ),
+    'transferToLocker' : IDL.Func([IDL.Float64, IDL.Text], [], []),
     'updateSavingsGoal' : IDL.Func([IDL.Nat, IDL.Float64], [], []),
   });
 };

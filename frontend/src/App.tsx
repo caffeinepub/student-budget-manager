@@ -8,6 +8,7 @@ import ExpenseTracker from './components/ExpenseTracker';
 import SavingsGoalTracker from './components/SavingsGoalTracker';
 import InvestmentSuggestions from './components/InvestmentSuggestions';
 import BudgetCalculator from './components/BudgetCalculator';
+import WalletPage from './components/Wallet';
 import LoginPage from './components/LoginPage';
 import ProfileSetup from './components/ProfileSetup';
 import { Toaster } from '@/components/ui/sonner';
@@ -58,6 +59,12 @@ const calculatorRoute = createRoute({
   component: BudgetCalculator,
 });
 
+const walletRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/wallet',
+  component: WalletGuard,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   onboardingRoute,
@@ -65,6 +72,7 @@ const routeTree = rootRoute.addChildren([
   goalsRoute,
   investRoute,
   calculatorRoute,
+  walletRoute,
 ]);
 
 const router = createRouter({ routeTree });
@@ -99,6 +107,32 @@ function DashboardGuard() {
   }
 
   return <Dashboard />;
+}
+
+function WalletGuard() {
+  const { identity, isInitializing } = useInternetIdentity();
+  const { data: userProfile, isLoading: profileLoading, isFetched } = useGetCallerUserProfile();
+
+  if (isInitializing || profileLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!identity) {
+    return <LoginPage />;
+  }
+
+  if (isFetched && userProfile === null) {
+    return <ProfileSetup />;
+  }
+
+  return <WalletPage />;
 }
 
 export default function App() {

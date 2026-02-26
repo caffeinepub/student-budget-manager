@@ -1,14 +1,17 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 3,
+  "projectStateVersion": 7,
   "summary": "Mobile app called Student Budget Manager for students. Takes student income (pocket money, stipend, part-time) and automatically divides it into Spending, Saving, and Investment buckets. Shows daily spend limits, monthly savings targets, and safe investment amounts. Includes budget calculator, expense tracking, savings goal tracker, low-risk investment suggestions, and a Digital Locker that locks savings until a goal or time period is met. Must be simple, student-friendly, and low-data usage.",
   "architectural_notes": [
     "App must be low-data usage and student-friendly (simple UX)",
-    "Mobile application (iOS/Android)"
+    "Mobile application (iOS/Android)",
+    "Online payment wallet required: store, receive, and transfer money; integrate with Digital Locker transfers",
+    "Payment flow uses QR code scanning (no bank account integration required)"
   ],
-  "known_issues": [],
+  "known_issues": [
+    "Previous build failed when attempting to add QR scanner and payment app features — retry in progress"
+  ],
   "isFixRequest": false,
-  "imageRequirements": "## Required Images\n- Student Budget Manager app logo — a minimalist piggy bank combined with a graduation cap, in teal and green tones on a white background (logo.dim_256x256.png)\n- Digital Locker illustration — a friendly cartoon padlock with a coin slot, in green and gold tones (locker-illustration.dim_400x300.png)\n- Empty state illustration for no expenses — a clean line-art wallet with a happy face (empty-expenses.dim_300x200.png)\n- Empty state illustration for no savings goals — a simple mountain with a flag at the peak in teal tones (empty-goals.dim_300x200.png)",
   "existing_features": [
     {
       "id": "feature-build-an-onboarding-income-setup-screen-where-students-enter-their-total-monthly-income-broken-down-by-source-pocket-money-stipend-part-time-display-a-live-preview-of-the-auto-divided-amounts-as-the-user-types-using-default-splits-of-50-spending-30-saving-20-investment-allow-the-user-to-adjust-the-split-percentages-with-a-slider-group-that-enforces-a-100-total",
@@ -63,6 +66,54 @@
       "title": "Design and implement a student-friendly visual theme: a clean, energetic color palette using greens and teals (representing growth and financial health) with warm accent colors for alerts. Use a card-based layout with rounded corners, clear typography hierarchy, and simple iconography. The UI must be optimized for mobile viewports (max-width 430px) with a bottom navigation bar for main sections: Dashboard, Expenses, Goals, Invest, Calculator.",
       "reqIds": [
         "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-create-a-new-wallet-screen-in-the-frontend-accessible-via-a-wallet-icon-or-tab-the-screen-must-display-the-current-wallet-balance-prominently-a-receive-money-section-with-a-simulated-form-enter-amount-and-sender-label-that-calls-addfundstowallet-a-transfer-to-digital-locker-section-with-an-amount-input-and-confirm-button-that-calls-transfertolocker-and-a-scrollable-transaction-history-list-showing-each-transaction-s-amount-type-received-transferred-sender-destination-label-date-and-optional-note-show-success-and-error-toasts-for-all-actions",
+      "title": "Create a new Wallet screen in the frontend accessible via a wallet icon or tab. The screen must display the current wallet balance prominently, a 'Receive Money' section with a simulated form (enter amount and sender label) that calls addFundsToWallet, a 'Transfer to Digital Locker' section with an amount input and confirm button that calls transferToLocker, and a scrollable transaction history list showing each transaction's amount, type (received/transferred), sender/destination label, date, and optional note. Show success and error toasts for all actions.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-bottom-navigation-bar-to-include-a-wallet-tab-with-an-appropriate-icon-making-it-a-sixth-navigation-item-alongside-dashboard-expenses-goals-invest-and-calculator-ensure-the-wallet-route-is-registered-in-the-tanstack-router-configuration-in-app-tsx",
+      "title": "Update the bottom navigation bar to include a 'Wallet' tab with an appropriate icon, making it a sixth navigation item alongside Dashboard, Expenses, Goals, Invest, and Calculator. Ensure the Wallet route is registered in the TanStack Router configuration in App.tsx.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-dashboard-screen-to-show-the-user-s-current-wallet-balance-as-a-new-balance-card-alongside-the-existing-spending-saving-and-investment-cards-add-a-go-to-wallet-quick-action-button-in-the-quick-actions-section",
+      "title": "Update the Dashboard screen to show the user's current wallet balance as a new balance card alongside the existing Spending, Saving, and Investment cards. Add a 'Go to Wallet' quick-action button in the quick-actions section.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-qr-code-generation-feature-to-the-wallet-screen-display-a-unique-scannable-qr-code-representing-the-user-s-wallet-identity-e-g-their-principal-id-or-a-user-friendly-payment-handle-this-qr-code-should-be-shown-in-the-receive-money-section-so-others-can-scan-it-to-send-money-use-the-qrcode-react-or-equivalent-library-to-render-the-qr-code-client-side",
+      "title": "Add a QR code generation feature to the Wallet screen: display a unique, scannable QR code representing the user's wallet identity (e.g., their principal ID or a user-friendly payment handle). This QR code should be shown in the 'Receive Money' section so others can scan it to send money. Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-qr-code-scanner-to-the-wallet-screen-that-allows-the-user-to-scan-another-person-s-payment-qr-code-to-send-money-to-them-use-the-device-camera-via-the-html5-qrcode-or-react-qr-reader-library-after-a-successful-scan-pre-fill-a-send-money-form-with-the-recipient-identifier-and-allow-the-user-to-enter-an-amount-and-optional-note-on-confirmation-call-a-new-backend-function-sendfundsfromwallet-that-deducts-the-amount-from-the-sender-s-wallet-balance-and-records-an-outgoing-transaction",
+      "title": "Add a QR code scanner to the Wallet screen that allows the user to scan another person's payment QR code to send money to them. Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library. After a successful scan, pre-fill a 'Send Money' form with the recipient identifier and allow the user to enter an amount and optional note. On confirmation, call a new backend function sendFundsFromWallet that deducts the amount from the sender's wallet balance and records an outgoing transaction.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-redesign-the-wallet-screen-ui-to-feel-like-a-modern-peer-to-peer-payment-app-e-g-similar-to-google-pay-or-phonepe-without-requiring-a-bank-account-the-layout-should-include-a-large-wallet-balance-at-the-top-with-a-gradient-card-a-horizontal-row-of-action-buttons-receive-scan-pay-transfer-to-locker-with-icons-a-my-qr-code-expandable-section-in-receive-a-full-screen-scanner-modal-for-scan-pay-and-a-grouped-transaction-history-at-the-bottom-showing-sent-received-and-locker-transfer-transactions-each-with-distinct-color-coded-icons",
+      "title": "Redesign the Wallet screen UI to feel like a modern peer-to-peer payment app (e.g., similar to Google Pay or PhonePe) without requiring a bank account. The layout should include: a large wallet balance at the top with a gradient card, a horizontal row of action buttons (Receive / Scan & Pay / Transfer to Locker) with icons, a 'My QR Code' expandable section in Receive, a full-screen scanner modal for Scan & Pay, and a grouped transaction history at the bottom showing sent, received, and locker-transfer transactions each with distinct color-coded icons.",
+      "reqIds": [
+        "REQ-17"
       ],
       "version": 1
     }
@@ -135,6 +186,52 @@
       "summary": "Implement backend query and update functions: addIncome, getProfile, setAllocationSplit, addExpense, getExpenses, addSavingsGoal, updateSavingsGoal, getSavingsGoals, getLockerStatus, requestUnlock (validates goal-met or time-period condition before unlocking), and getInvestmentSuggestions (returns static low-risk suggestion list based on monthly investable amount).",
       "reqIds": [
         "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Add monthly reports screen and spending alerts/notifications",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-13",
+      "summary": "Add bill reminders feature",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-14",
+      "summary": "Modify Digital Locker unlock rules",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-15",
+      "summary": "Add online payment wallet: store, receive, and transfer money online; ability to transfer wallet funds to Digital Locker",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-16",
+      "summary": "Add a backend data model and actor functions to support an online wallet per user. The wallet must store a running balance, a list of received transactions (amount, sender label, timestamp, note), and a list of outgoing transfers (amount, destination: 'locker' or 'external', timestamp, note). Implement the following functions: getWalletBalance (returns current wallet balance), addFundsToWallet (simulates receiving money — accepts an amount and an optional sender label, increments wallet balance, and records the transaction), transferToLocker (moves a specified amount from the wallet balance to the user's Digital Locker savings, fails if wallet balance is insufficient), and getWalletTransactions (returns the full transaction history sorted by most recent first).",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "Add QR code scanner for sending and receiving payments — make it feel like a proper payment app (no bank account needed)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Implement a new backend function sendFundsFromWallet in the main Motoko actor. The function accepts a recipient identifier (Text), amount (Nat), and optional note (Text). It validates that the caller's wallet balance is sufficient, deducts the amount, records an outgoing transaction with type 'sent', recipient label, timestamp, and note, and returns a Result indicating success or an error message (e.g., #insufficientFunds, #userNotFound).",
+      "reqIds": [
+        "REQ-16"
       ],
       "status": "pending"
     }

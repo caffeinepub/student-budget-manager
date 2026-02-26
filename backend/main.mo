@@ -6,15 +6,20 @@ import Runtime "mo:core/Runtime";
 import Float "mo:core/Float";
 import Int "mo:core/Int";
 import Array "mo:core/Array";
+import List "mo:core/List";
+import Order "mo:core/Order";
+import Nat "mo:core/Nat";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
-  // ── Access Control ──────────────────────────────────────────────
+  // ── Access Control ─────────────────────────────────────
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // ── Data Types ──────────────────────────────────────────────────
+  // ── Data Types ──────────────────────────────────────────
   public type IncomeSource = {
     name : Text;
     amount : Float;
@@ -65,22 +70,65 @@ actor {
     digitalLocker : DigitalLocker;
   };
 
-  // ── State ───────────────────────────────────────────────────────
-  let profiles = Map.empty<Principal, Profile>();
+  public type WalletTransaction = {
+    id : Nat;
+    amount : Float;
+    recipientLabel : ?Text;
+    transactionType : Text;
+    timestamp : Int;
+    note : Text;
+  };
 
-  // ── Internal helpers ────────────────────────────────────────────
-  func emptyProfile() : Profile {
+  public type LockerTransfer = {
+    id : Nat;
+    amount : Float;
+    destination : Text;
+    timestamp : Int;
+    note : Text;
+  };
+
+  public type Wallet = {
+    balance : Float;
+    transactions : [WalletTransaction];
+    transfers : [LockerTransfer];
+  };
+
+  public type CompleteProfile = {
+    profile : Profile;
+    wallet : Wallet;
+  };
+
+  public type SendFundsError = {
+    #insufficientFunds;
+    #userNotFound;
+    #other : Text;
+  };
+
+  // ── State ───────────────────────────────────────────────
+  let profiles = Map.empty<Principal, CompleteProfile>();
+  var nextTransactionId = 0;
+  var nextTransferId = 0;
+
+  // ── Internal helpers ────────────────────────────────────
+  func emptyProfile() : CompleteProfile {
     {
-      userProfile = { displayName = "" };
-      incomeSources = [];
-      allocation = { spendingPct = 50.0; savingPct = 30.0; investingPct = 20.0 };
-      expenses = [];
-      savingsGoals = [];
-      digitalLocker = { locked = true; conditionType = null; unlockDate = null };
+      profile = {
+        userProfile = { displayName = "" };
+        incomeSources = [];
+        allocation = { spendingPct = 50.0; savingPct = 30.0; investingPct = 20.0 };
+        expenses = [];
+        savingsGoals = [];
+        digitalLocker = { locked = true; conditionType = null; unlockDate = null };
+      };
+      wallet = {
+        balance = 0.0;
+        transactions = [];
+        transfers = [];
+      };
     };
   };
 
-  func getOrCreateProfile(user : Principal) : Profile {
+  func getOrCreateProfile(user : Principal) : CompleteProfile {
     switch (profiles.get(user)) {
       case (?p) { p };
       case (null) {
@@ -97,13 +145,17 @@ actor {
     total;
   };
 
-  // ── User Profile (required by frontend) ─────────────────────────
+  func convertTransactionToTuple(t : WalletTransaction) : (Int, WalletTransaction) {
+    (t.timestamp, t);
+  };
+
+  // ── User Profile (required by frontend) ────────────────
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can access profiles");
     };
     switch (profiles.get(caller)) {
-      case (?p) { ?p.userProfile };
+      case (?p) { ?p.profile.userProfile };
       case (null) { null };
     };
   };
@@ -113,13 +165,16 @@ actor {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     let existing = getOrCreateProfile(caller);
-    let updated : Profile = {
-      userProfile = up;
-      incomeSources = existing.incomeSources;
-      allocation = existing.allocation;
-      expenses = existing.expenses;
-      savingsGoals = existing.savingsGoals;
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = up;
+        incomeSources = existing.profile.incomeSources;
+        allocation = existing.profile.allocation;
+        expenses = existing.profile.expenses;
+        savingsGoals = existing.profile.savingsGoals;
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -129,25 +184,28 @@ actor {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
     switch (profiles.get(user)) {
-      case (?p) { ?p.userProfile };
+      case (?p) { ?p.profile.userProfile };
       case (null) { null };
     };
   };
 
-  // ── Income ───────────────────────────────────────────────────────
+  // ── Income ──────────────────────────────────────────────
   public shared ({ caller }) func addIncome(name : Text, amount : Float) : async () {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can add income");
     };
     let existing = getOrCreateProfile(caller);
     let newSource : IncomeSource = { name = name; amount };
-    let updated : Profile = {
-      userProfile = existing.userProfile;
-      incomeSources = existing.incomeSources.concat([newSource]);
-      allocation = existing.allocation;
-      expenses = existing.expenses;
-      savingsGoals = existing.savingsGoals;
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = existing.profile.userProfile;
+        incomeSources = existing.profile.incomeSources.concat([newSource]);
+        allocation = existing.profile.allocation;
+        expenses = existing.profile.expenses;
+        savingsGoals = existing.profile.savingsGoals;
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -158,11 +216,11 @@ actor {
     };
     switch (profiles.get(user)) {
       case (null) { Runtime.trap("Profile not found") };
-      case (?p) { p };
+      case (?p) { p.profile };
     };
   };
 
-  // ── Budget Allocation ────────────────────────────────────────────
+  // ── Budget Allocation ───────────────────────────────────
   public shared ({ caller }) func setAllocationSplit(spending : Float, saving : Float, investing : Float) : async () {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can set allocation");
@@ -171,18 +229,21 @@ actor {
       Runtime.trap("Allocation percentages must sum to 100");
     };
     let existing = getOrCreateProfile(caller);
-    let updated : Profile = {
-      userProfile = existing.userProfile;
-      incomeSources = existing.incomeSources;
-      allocation = { spendingPct = spending; savingPct = saving; investingPct = investing };
-      expenses = existing.expenses;
-      savingsGoals = existing.savingsGoals;
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = existing.profile.userProfile;
+        incomeSources = existing.profile.incomeSources;
+        allocation = { spendingPct = spending; savingPct = saving; investingPct = investing };
+        expenses = existing.profile.expenses;
+        savingsGoals = existing.profile.savingsGoals;
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
 
-  // ── Expenses ─────────────────────────────────────────────────────
+  // ── Expenses ────────────────────────────────────────────
   public shared ({ caller }) func addExpense(amount : Float, category : Text, note : Text) : async () {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can add expenses");
@@ -194,13 +255,16 @@ actor {
       date = Time.now();
       note;
     };
-    let updated : Profile = {
-      userProfile = existing.userProfile;
-      incomeSources = existing.incomeSources;
-      allocation = existing.allocation;
-      expenses = existing.expenses.concat([newExpense]);
-      savingsGoals = existing.savingsGoals;
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = existing.profile.userProfile;
+        incomeSources = existing.profile.incomeSources;
+        allocation = existing.profile.allocation;
+        expenses = existing.profile.expenses.concat([newExpense]);
+        savingsGoals = existing.profile.savingsGoals;
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -210,10 +274,10 @@ actor {
       Runtime.trap("Unauthorized: Only users can view expenses");
     };
     let p = getOrCreateProfile(caller);
-    p.expenses;
+    p.profile.expenses;
   };
 
-  // ── Savings Goals ────────────────────────────────────────────────
+  // ── Savings Goals ───────────────────────────────────────
   public shared ({ caller }) func addSavingsGoal(name : Text, target : Float, deadline : Int) : async () {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can add savings goals");
@@ -226,13 +290,16 @@ actor {
       deadline;
       locked = false;
     };
-    let updated : Profile = {
-      userProfile = existing.userProfile;
-      incomeSources = existing.incomeSources;
-      allocation = existing.allocation;
-      expenses = existing.expenses;
-      savingsGoals = existing.savingsGoals.concat([newGoal]);
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = existing.profile.userProfile;
+        incomeSources = existing.profile.incomeSources;
+        allocation = existing.profile.allocation;
+        expenses = existing.profile.expenses;
+        savingsGoals = existing.profile.savingsGoals.concat([newGoal]);
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -242,19 +309,22 @@ actor {
       Runtime.trap("Unauthorized: Only users can update savings goals");
     };
     let existing = getOrCreateProfile(caller);
-    if (index >= existing.savingsGoals.size()) {
+    if (index >= existing.profile.savingsGoals.size()) {
       Runtime.trap("Invalid goal index");
     };
 
-    let updatedGoals = Array.tabulate(existing.savingsGoals.size(), func(i) { if (i < existing.savingsGoals.size()) { if (i == index) { let g = existing.savingsGoals[i]; let newAmount = g.currentAmount + amount; { name = g.name; targetAmount = g.targetAmount; currentAmount = newAmount; deadline = g.deadline; locked = g.locked } } else { existing.savingsGoals[i] } } else { existing.savingsGoals[0] } });
+    let updatedGoals = Array.tabulate(existing.profile.savingsGoals.size(), func(i) { if (i < existing.profile.savingsGoals.size()) { if (i == index) { let g = existing.profile.savingsGoals[i]; let newAmount = g.currentAmount + amount; { name = g.name; targetAmount = g.targetAmount; currentAmount = newAmount; deadline = g.deadline; locked = g.locked } } else { existing.profile.savingsGoals[i] } } else { existing.profile.savingsGoals[0] } });
 
-    let updated : Profile = {
-      userProfile = existing.userProfile;
-      incomeSources = existing.incomeSources;
-      allocation = existing.allocation;
-      expenses = existing.expenses;
-      savingsGoals = updatedGoals;
-      digitalLocker = existing.digitalLocker;
+    let updated : CompleteProfile = {
+      profile = {
+        userProfile = existing.profile.userProfile;
+        incomeSources = existing.profile.incomeSources;
+        allocation = existing.profile.allocation;
+        expenses = existing.profile.expenses;
+        savingsGoals = updatedGoals;
+        digitalLocker = existing.profile.digitalLocker;
+      };
+      wallet = existing.wallet;
     };
     profiles.add(caller, updated);
   };
@@ -264,16 +334,16 @@ actor {
       Runtime.trap("Unauthorized: Only users can view savings goals");
     };
     let p = getOrCreateProfile(caller);
-    p.savingsGoals;
+    p.profile.savingsGoals;
   };
 
-  // ── Digital Locker ───────────────────────────────────────────────
+  // ── Digital Locker ──────────────────────────────────────
   public query ({ caller }) func getLockerStatus() : async DigitalLocker {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can view locker status");
     };
     let p = getOrCreateProfile(caller);
-    p.digitalLocker;
+    p.profile.digitalLocker;
   };
 
   public shared ({ caller }) func requestUnlock(conditionType : Text, goalIndex : ?Nat, periodDays : ?Nat) : async Bool {
@@ -287,23 +357,26 @@ actor {
         case (null) { Runtime.trap("Goal index required for goal-met condition") };
         case (?i) { i };
       };
-      if (index >= existing.savingsGoals.size()) {
+      if (index >= existing.profile.savingsGoals.size()) {
         Runtime.trap("Invalid goal index");
       };
-      let goal = existing.savingsGoals[index];
+      let goal = existing.profile.savingsGoals[index];
       if (goal.currentAmount >= goal.targetAmount) {
         let updatedLocker : DigitalLocker = {
           locked = false;
           conditionType = ?#goalMet(index);
           unlockDate = ?Time.now();
         };
-        let updated : Profile = {
-          userProfile = existing.userProfile;
-          incomeSources = existing.incomeSources;
-          allocation = existing.allocation;
-          expenses = existing.expenses;
-          savingsGoals = existing.savingsGoals;
-          digitalLocker = updatedLocker;
+        let updated : CompleteProfile = {
+          profile = {
+            userProfile = existing.profile.userProfile;
+            incomeSources = existing.profile.incomeSources;
+            allocation = existing.profile.allocation;
+            expenses = existing.profile.expenses;
+            savingsGoals = existing.profile.savingsGoals;
+            digitalLocker = updatedLocker;
+          };
+          wallet = existing.wallet;
         };
         profiles.add(caller, updated);
         return true;
@@ -321,29 +394,34 @@ actor {
         conditionType = ?#timePeriod(unlockDate);
         unlockDate = ?unlockDate;
       };
-      let updated : Profile = {
-        userProfile = existing.userProfile;
-        incomeSources = existing.incomeSources;
-        allocation = existing.allocation;
-        expenses = existing.expenses;
-        savingsGoals = existing.savingsGoals;
-        digitalLocker = updatedLocker;
+      let updated : CompleteProfile = {
+        profile = {
+          userProfile = existing.profile.userProfile;
+          incomeSources = existing.profile.incomeSources;
+          allocation = existing.profile.allocation;
+          expenses = existing.profile.expenses;
+          savingsGoals = existing.profile.savingsGoals;
+          digitalLocker = updatedLocker;
+        };
+        wallet = existing.wallet;
       };
       profiles.add(caller, updated);
-      // Check if the time period has already passed (e.g. 0 days)
       if (Time.now() >= unlockDate) {
         let unlockedLocker : DigitalLocker = {
           locked = false;
           conditionType = updatedLocker.conditionType;
           unlockDate = updatedLocker.unlockDate;
         };
-        let finalUpdated : Profile = {
-          userProfile = existing.userProfile;
-          incomeSources = existing.incomeSources;
-          allocation = existing.allocation;
-          expenses = existing.expenses;
-          savingsGoals = existing.savingsGoals;
-          digitalLocker = unlockedLocker;
+        let finalUpdated : CompleteProfile = {
+          profile = {
+            userProfile = existing.profile.userProfile;
+            incomeSources = existing.profile.incomeSources;
+            allocation = existing.profile.allocation;
+            expenses = existing.profile.expenses;
+            savingsGoals = existing.profile.savingsGoals;
+            digitalLocker = unlockedLocker;
+          };
+          wallet = existing.wallet;
         };
         profiles.add(caller, finalUpdated);
         return true;
@@ -353,14 +431,147 @@ actor {
     false;
   };
 
-  // ── Investment Suggestions ───────────────────────────────────────
+  // ── Wallet Functions ────────────────────────────────────
+  public query ({ caller }) func getWalletBalance() : async Float {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view wallet balance");
+    };
+    let p = getOrCreateProfile(caller);
+    p.wallet.balance;
+  };
+
+  public shared ({ caller }) func addFundsToWallet(amount : Float, senderLabel : ?Text, note : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can add funds");
+    };
+    let existing = getOrCreateProfile(caller);
+    let newTransaction : WalletTransaction = {
+      id = nextTransactionId;
+      amount;
+      recipientLabel = senderLabel;
+      transactionType = "received";
+      timestamp = Time.now();
+      note;
+    };
+    nextTransactionId += 1;
+
+    let updated : CompleteProfile = {
+      profile = existing.profile;
+      wallet = {
+        balance = existing.wallet.balance + amount;
+        transactions = existing.wallet.transactions.concat([newTransaction]);
+        transfers = existing.wallet.transfers;
+      };
+    };
+    profiles.add(caller, updated);
+  };
+
+  public shared ({ caller }) func transferToLocker(amount : Float, note : Text) : async () {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can transfer to locker");
+    };
+    let existing = getOrCreateProfile(caller);
+    if (amount > existing.wallet.balance) {
+      Runtime.trap("Insufficient wallet balance");
+    };
+    let newTransfer : LockerTransfer = {
+      id = nextTransferId;
+      amount;
+      destination = "locker";
+      timestamp = Time.now();
+      note;
+    };
+    nextTransferId += 1;
+
+    let updated : CompleteProfile = {
+      profile = existing.profile;
+      wallet = {
+        balance = existing.wallet.balance - amount;
+        transactions = existing.wallet.transactions;
+        transfers = existing.wallet.transfers.concat([newTransfer]);
+      };
+    };
+    profiles.add(caller, updated);
+  };
+
+  public query ({ caller }) func getWalletTransactions() : async [WalletTransaction] {
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      Runtime.trap("Unauthorized: Only users can view transactions");
+    };
+    let p = getOrCreateProfile(caller);
+
+    let transactionsList = List.fromArray<WalletTransaction>(p.wallet.transactions);
+
+    let sortedTransactionsList = transactionsList.sort(
+      func(a, b) {
+        if (a.timestamp < b.timestamp) {
+          #greater;
+        } else if (a.timestamp > b.timestamp) {
+          #less;
+        } else {
+          #equal;
+        };
+      }
+    );
+
+    sortedTransactionsList.toArray();
+  };
+
+  // ── NEW: Send Funds FROM Wallet (Scan to Send) ───────
+  public shared ({ caller }) func sendFundsFromWallet(
+    recipient : Text,
+    amount : Float,
+    note : Text,
+  ) : async {
+    #ok : WalletTransaction;
+    #err : SendFundsError;
+  } {
+    // Auth check
+    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+      return #err(#other("Unauthorized: Only users can send funds"));
+    };
+
+    let senderProfile = getOrCreateProfile(caller);
+
+    // Check sufficient funds
+    if (amount > senderProfile.wallet.balance) {
+      return #err(#insufficientFunds);
+    };
+
+    // Create transaction
+    let transaction : WalletTransaction = {
+      id = nextTransactionId;
+      amount;
+      recipientLabel = ?recipient;
+      transactionType = "sent";
+      timestamp = Time.now();
+      note;
+    };
+
+    // Update sender's wallet with deduction
+    let updatedSender : CompleteProfile = {
+      profile = senderProfile.profile;
+      wallet = {
+        balance = senderProfile.wallet.balance - amount;
+        transactions = senderProfile.wallet.transactions.concat([transaction]);
+        transfers = senderProfile.wallet.transfers;
+      };
+    };
+
+    profiles.add(caller, updatedSender);
+    nextTransactionId += 1;
+
+    #ok(transaction);
+  };
+
+  // ── Investment Suggestions ──────────────────────────────
   public query ({ caller }) func getInvestmentSuggestions() : async [(Text, Float)] {
     if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
       Runtime.trap("Unauthorized: Only users can view investment suggestions");
     };
     let p = getOrCreateProfile(caller);
-    let income = totalIncome(p.incomeSources);
-    let investingAmount = income * (p.allocation.investingPct / 100.0);
+    let income = totalIncome(p.profile.incomeSources);
+    let investingAmount = income * (p.profile.allocation.investingPct / 100.0);
     [
       ("Low-Risk Savings Account", investingAmount * 0.5),
       ("Government Bonds", investingAmount * 0.3),

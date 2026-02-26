@@ -21,6 +21,24 @@ export interface DigitalLocker {
     locked: boolean;
     conditionType?: UnlockCondition;
 }
+export type SendFundsError = {
+    __kind__: "userNotFound";
+    userNotFound: null;
+} | {
+    __kind__: "other";
+    other: string;
+} | {
+    __kind__: "insufficientFunds";
+    insufficientFunds: null;
+};
+export interface WalletTransaction {
+    id: bigint;
+    transactionType: string;
+    note: string;
+    timestamp: bigint;
+    amount: number;
+    recipientLabel?: string;
+}
 export interface Profile {
     expenses: Array<Expense>;
     digitalLocker: DigitalLocker;
@@ -59,6 +77,7 @@ export enum UserRole {
 }
 export interface backendInterface {
     addExpense(amount: number, category: string, note: string): Promise<void>;
+    addFundsToWallet(amount: number, senderLabel: string | null, note: string): Promise<void>;
     addIncome(name: string, amount: number): Promise<void>;
     addSavingsGoal(name: string, target: number, deadline: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -70,9 +89,19 @@ export interface backendInterface {
     getProfile(user: Principal): Promise<Profile>;
     getSavingsGoals(): Promise<Array<SavingsGoal>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getWalletBalance(): Promise<number>;
+    getWalletTransactions(): Promise<Array<WalletTransaction>>;
     isCallerAdmin(): Promise<boolean>;
     requestUnlock(conditionType: string, goalIndex: bigint | null, periodDays: bigint | null): Promise<boolean>;
     saveCallerUserProfile(up: UserProfile): Promise<void>;
+    sendFundsFromWallet(recipient: string, amount: number, note: string): Promise<{
+        __kind__: "ok";
+        ok: WalletTransaction;
+    } | {
+        __kind__: "err";
+        err: SendFundsError;
+    }>;
     setAllocationSplit(spending: number, saving: number, investing: number): Promise<void>;
+    transferToLocker(amount: number, note: string): Promise<void>;
     updateSavingsGoal(index: bigint, amount: number): Promise<void>;
 }

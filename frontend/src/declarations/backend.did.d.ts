@@ -42,15 +42,27 @@ export interface SavingsGoal {
   'targetAmount' : number,
   'currentAmount' : number,
 }
+export type SendFundsError = { 'userNotFound' : null } |
+  { 'other' : string } |
+  { 'insufficientFunds' : null };
 export type UnlockCondition = { 'goalMet' : bigint } |
   { 'timePeriod' : bigint };
 export interface UserProfile { 'displayName' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface WalletTransaction {
+  'id' : bigint,
+  'transactionType' : string,
+  'note' : string,
+  'timestamp' : bigint,
+  'amount' : number,
+  'recipientLabel' : [] | [string],
+}
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addExpense' : ActorMethod<[number, string, string], undefined>,
+  'addFundsToWallet' : ActorMethod<[number, [] | [string], string], undefined>,
   'addIncome' : ActorMethod<[string, number], undefined>,
   'addSavingsGoal' : ActorMethod<[string, number, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -62,13 +74,21 @@ export interface _SERVICE {
   'getProfile' : ActorMethod<[Principal], Profile>,
   'getSavingsGoals' : ActorMethod<[], Array<SavingsGoal>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getWalletBalance' : ActorMethod<[], number>,
+  'getWalletTransactions' : ActorMethod<[], Array<WalletTransaction>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'requestUnlock' : ActorMethod<
     [string, [] | [bigint], [] | [bigint]],
     boolean
   >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'sendFundsFromWallet' : ActorMethod<
+    [string, number, string],
+    { 'ok' : WalletTransaction } |
+      { 'err' : SendFundsError }
+  >,
   'setAllocationSplit' : ActorMethod<[number, number, number], undefined>,
+  'transferToLocker' : ActorMethod<[number, string], undefined>,
   'updateSavingsGoal' : ActorMethod<[bigint, number], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

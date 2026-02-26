@@ -1,5 +1,5 @@
 import { useRouter } from '@tanstack/react-router';
-import { useGetProfile, useGetLockerStatus } from '../hooks/useQueries';
+import { useGetProfile, useGetLockerStatus, useGetWalletBalance } from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { useQueryClient } from '@tanstack/react-query';
 import BalanceCard from './BalanceCard';
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Wallet, PiggyBank, TrendingUp, Plus, Target, ChevronRight,
-  Settings, LogOut, ShoppingBag, Bus, BookOpen, Gamepad2, Heart, MoreHorizontal
+  Settings, LogOut, ShoppingBag, Bus, BookOpen, Gamepad2, Heart, MoreHorizontal,
+  ArrowRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -33,12 +34,20 @@ const categoryColors: Record<string, string> = {
   Other: 'bg-gray-100 text-gray-600',
 };
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { identity, clear } = useInternetIdentity();
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useGetProfile();
   const { data: lockerStatus } = useGetLockerStatus();
+  const { data: walletBalance = 0 } = useGetWalletBalance();
 
   const handleLogout = async () => {
     await clear();
@@ -141,17 +150,17 @@ export default function Dashboard() {
       <div className="grid grid-cols-3 gap-3">
         <BalanceCard
           title="Spend"
-          amount={spendingAmt - totalExpenses > 0 ? spendingAmt - totalExpenses : 0}
+          amount={spendingAmt}
           subtitle={`${spendingPct}% of income`}
           gradientClass="gradient-spending"
-          icon={<Wallet size={14} className="text-white" />}
+          icon={<Wallet size={14} />}
         />
         <BalanceCard
           title="Save"
           amount={savingAmt}
           subtitle={`${savingPct}% of income`}
           gradientClass="gradient-saving"
-          icon={<PiggyBank size={14} className="text-white" />}
+          icon={<PiggyBank size={14} />}
           locked={isLocked}
         />
         <BalanceCard
@@ -159,91 +168,166 @@ export default function Dashboard() {
           amount={investingAmt}
           subtitle={`${investingPct}% of income`}
           gradientClass="gradient-invest"
-          icon={<TrendingUp size={14} className="text-white" />}
+          icon={<TrendingUp size={14} />}
         />
       </div>
 
+      {/* Wallet Balance Card */}
+      <button
+        onClick={() => router.navigate({ to: '/wallet' })}
+        className="w-full bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
+      >
+        <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0">
+          <Wallet size={18} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Online Wallet</p>
+          <p className="text-lg font-bold text-foreground">₹{formatINR(walletBalance)}</p>
+        </div>
+        <div className="flex items-center gap-1 text-primary">
+          <span className="text-xs font-semibold">Open</span>
+          <ArrowRight size={14} />
+        </div>
+      </button>
+
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Add Expense', icon: Plus, path: '/expenses', color: 'bg-primary/10 text-primary' },
-          { label: 'View Goals', icon: Target, path: '/goals', color: 'bg-success/10 text-success' },
-          { label: 'Investments', icon: TrendingUp, path: '/invest', color: 'bg-invest/10 text-invest' },
-        ].map(({ label, icon: Icon, path, color }) => (
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-2 gap-3">
           <button
-            key={path}
-            onClick={() => router.navigate({ to: path })}
-            className="card-base flex flex-col items-center gap-2 py-4 touch-target hover:shadow-card-hover transition-shadow"
+            onClick={() => router.navigate({ to: '/expenses' })}
+            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
           >
-            <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}>
-              <Icon size={18} />
+            <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+              <Plus size={16} className="text-orange-600" />
             </div>
-            <span className="text-xs font-semibold text-foreground text-center leading-tight">{label}</span>
+            <div>
+              <p className="text-sm font-semibold">Add Expense</p>
+              <p className="text-[10px] text-muted-foreground">Track spending</p>
+            </div>
           </button>
-        ))}
+          <button
+            onClick={() => router.navigate({ to: '/goals' })}
+            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-teal-100 flex items-center justify-center">
+              <Target size={16} className="text-teal-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Set Goal</p>
+              <p className="text-[10px] text-muted-foreground">Save smarter</p>
+            </div>
+          </button>
+          <button
+            onClick={() => router.navigate({ to: '/wallet' })}
+            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Wallet size={16} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">My Wallet</p>
+              <p className="text-[10px] text-muted-foreground">Manage funds</p>
+            </div>
+          </button>
+          <button
+            onClick={() => router.navigate({ to: '/invest' })}
+            className="bg-card rounded-2xl p-4 border border-border shadow-card flex items-center gap-3 hover:bg-muted/30 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <TrendingUp size={16} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Invest</p>
+              <p className="text-[10px] text-muted-foreground">Grow money</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Recent Expenses */}
-      <div className="card-base space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-foreground">Recent Expenses</h3>
-          <button
-            onClick={() => router.navigate({ to: '/expenses' })}
-            className="flex items-center gap-1 text-xs text-primary font-semibold"
-          >
-            See all <ChevronRight size={14} />
-          </button>
-        </div>
-
-        {recentExpenses.length === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-muted-foreground text-sm">No expenses yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Tap "Add Expense" to track spending</p>
+      {recentExpenses.length > 0 && (
+        <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <h2 className="text-sm font-semibold">Recent Expenses</h2>
+            <button
+              onClick={() => router.navigate({ to: '/expenses' })}
+              className="flex items-center gap-1 text-xs text-primary font-medium"
+            >
+              See all <ChevronRight size={12} />
+            </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {recentExpenses.map((expense, i) => {
+          <div className="divide-y divide-border">
+            {recentExpenses.map((expense, idx) => {
+              const icon = categoryIcons[expense.category] ?? categoryIcons['Other'];
+              const colorClass = categoryColors[expense.category] ?? categoryColors['Other'];
               const dateMs = Number(expense.date) / 1_000_000;
-              const dateObj = new Date(dateMs);
               return (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${categoryColors[expense.category] || categoryColors.Other}`}>
-                    {categoryIcons[expense.category] || categoryIcons.Other}
+                <div key={idx} className="flex items-center gap-3 px-4 py-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${colorClass}`}>
+                    {icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{expense.category}</p>
-                    <p className="text-xs text-muted-foreground truncate">{expense.note || formatDistanceToNow(dateObj, { addSuffix: true })}</p>
+                    <p className="text-sm font-medium truncate">{expense.category}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {expense.note || formatDistanceToNow(new Date(dateMs), { addSuffix: true })}
+                    </p>
                   </div>
-                  <span className="text-sm font-bold text-destructive flex-shrink-0">-₹{formatINR(expense.amount)}</span>
+                  <p className="text-sm font-semibold text-destructive">-₹{formatINR(expense.amount)}</p>
                 </div>
               );
             })}
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Spending Summary */}
+      <div className="bg-card rounded-2xl p-4 border border-border shadow-card">
+        <h2 className="text-sm font-semibold mb-3">This Month</h2>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Total Spent</span>
+            <span className="font-semibold text-destructive">₹{formatINR(totalExpenses)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Remaining Budget</span>
+            <span className={`font-semibold ${spendingAmt - totalExpenses >= 0 ? 'text-success' : 'text-destructive'}`}>
+              ₹{formatINR(Math.max(0, spendingAmt - totalExpenses))}
+            </span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2 mt-2">
+            <div
+              className={`h-2 rounded-full transition-all ${
+                totalExpenses / spendingAmt > 0.9
+                  ? 'bg-destructive'
+                  : totalExpenses / spendingAmt > 0.7
+                  ? 'bg-warning'
+                  : 'bg-success'
+              }`}
+              style={{ width: `${Math.min(100, (totalExpenses / spendingAmt) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground text-right">
+            {Math.round((totalExpenses / spendingAmt) * 100)}% of spending budget used
+          </p>
+        </div>
       </div>
 
       {/* Footer */}
-      <footer className="text-center py-4 text-xs text-muted-foreground">
-        <p>
+      <div className="text-center py-4">
+        <p className="text-[10px] text-muted-foreground">
           Built with ❤️ using{' '}
           <a
-            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+            href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== 'undefined' ? window.location.hostname : 'student-budget-manager')}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary font-semibold hover:underline"
+            className="text-primary font-medium hover:underline"
           >
             caffeine.ai
-          </a>
+          </a>{' '}
+          · © {new Date().getFullYear()}
         </p>
-        <p className="mt-0.5">© {new Date().getFullYear()} Student Budget Manager</p>
-      </footer>
+      </div>
     </div>
   );
-}
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
 }

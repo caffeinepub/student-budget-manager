@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import { useInternetIdentity } from './useInternetIdentity';
-import type { Profile, Expense, SavingsGoal, DigitalLocker, UserProfile } from '../backend';
+import type { Profile, Expense, SavingsGoal, DigitalLocker, UserProfile, WalletTransaction } from '../backend';
 
 // ── User Profile ─────────────────────────────────────────────────
 
@@ -256,5 +256,113 @@ export function useGetInvestmentSuggestions() {
       return actor.getInvestmentSuggestions();
     },
     enabled: !!actor && !actorFetching && !!identity,
+  });
+}
+
+// ── Wallet ───────────────────────────────────────────────────────
+
+export function useGetWalletBalance() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<number>({
+    queryKey: ['walletBalance', identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return 0;
+      return actor.getWalletBalance();
+    },
+    enabled: !!actor && !actorFetching && !!identity,
+  });
+}
+
+export function useGetWalletTransactions() {
+  const { actor, isFetching: actorFetching } = useActor();
+  const { identity } = useInternetIdentity();
+
+  return useQuery<WalletTransaction[]>({
+    queryKey: ['walletTransactions', identity?.getPrincipal().toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getWalletTransactions();
+    },
+    enabled: !!actor && !actorFetching && !!identity,
+  });
+}
+
+export function useAddFundsToWallet() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      amount,
+      senderLabel,
+      note,
+    }: {
+      amount: number;
+      senderLabel: string | null;
+      note: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.addFundsToWallet(amount, senderLabel, note);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+    },
+  });
+}
+
+export function useTransferToLocker() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ amount, note }: { amount: number; note: string }) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.transferToLocker(amount, note);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['lockerStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+    },
+  });
+}
+
+export function useSendFundsFromWallet() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      recipient,
+      amount,
+      note,
+    }: {
+      recipient: string;
+      amount: number;
+      note: string;
+    }) => {
+      if (!actor) throw new Error('Actor not available');
+      const result = await actor.sendFundsFromWallet(recipient, amount, note);
+      if (result.__kind__ === 'err') {
+        const err = result.err;
+        if (err.__kind__ === 'insufficientFunds') {
+          throw new Error('Insufficient funds in your wallet');
+        } else if (err.__kind__ === 'userNotFound') {
+          throw new Error('Recipient not found');
+        } else if (err.__kind__ === 'other') {
+          throw new Error(err.other);
+        }
+        throw new Error('Failed to send funds');
+      }
+      return result.ok;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
+      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
+    },
   });
 }

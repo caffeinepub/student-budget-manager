@@ -1,99 +1,60 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T06:24:38.378Z",
-  "summary": "The diff implements the full Student Budget Manager app with backend Motoko actor and frontend React components. Most requirements are well-covered. A few specific acceptance criteria show gaps: the backend IncomeSource type uses a generic 'name: Text' rather than a typed variant (pocket_money | stipend | part_time); stable storage/canister upgrade persistence is not evidenced; deleteExpense is not shown; getDailySpendLimit backend function is not evidenced; the Digital Locker toggle in the Create Goal form does not appear to actually wire the locker activation to the goal creation call.",
+  "generatedAt": "2026-02-26T07:49:21.694Z",
+  "summary": "The diff implements most of the QR code scanner and payment features requested. REQ-16 (backend sendFundsFromWallet), REQ-15 (QR scanner + SendMoneyForm), REQ-14 (ReceiveMoneyModal with QR display), and REQ-17 (redesigned Wallet UI) are all partially addressed. However, there are notable gaps: the QR code in ReceiveMoneyModal uses an external API service (api.qrserver.com) instead of a client-side library like 'qrcode.react' as required, and the useQRScanner hook is referenced but not shown in the diff (potentially using a custom implementation rather than 'html5-qrcode' or 'react-qr-reader' as specified). Several acceptance criteria details are unverifiable due to truncation.",
   "missing_requirements": [
     {
-      "id": "REQ-1",
-      "requirement": "Backend income source type must be a variant: pocket_money | stipend | part_time",
-      "reason": "The backend IncomeSource type uses 'name: Text' (a free-form string) rather than a typed variant (pocket_money | stipend | part_time) as specified.",
+      "id": "REQ-14",
+      "requirement": "Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
+      "reason": "ReceiveMoneyModal.tsx uses an external HTTP API (api.qrserver.com) to generate QR codes rather than a client-side library like 'qrcode.react'. The constraint explicitly requires client-side rendering with no external scanning/generation service.",
       "evidence": [
-        "backend/main.mo"
+        "frontend/src/components/ReceiveMoneyModal.tsx"
       ]
     },
     {
-      "id": "REQ-1",
-      "requirement": "Expense log supports delete operations per user",
-      "reason": "The diff shows addExpense and getExpenses but no deleteExpense function is visible in the backend or frontend hooks.",
+      "id": "REQ-15",
+      "requirement": "Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library.",
+      "reason": "QRScannerModal.tsx uses a custom hook 'useQRScanner' from '../qr-code/useQRScanner' rather than the specified 'html5-qrcode' or 'react-qr-reader' libraries. The custom hook file is not shown in the diff, so it cannot be confirmed whether it wraps one of the required libraries.",
       "evidence": [
-        "backend/main.mo",
-        "frontend/src/hooks/useQueries.ts"
-      ]
-    },
-    {
-      "id": "REQ-1",
-      "requirement": "All state persists across canister upgrades using stable storage",
-      "reason": "No stable variable declarations or preupgrade/postupgrade system hooks are visible in the truncated backend code.",
-      "evidence": [
-        "backend/main.mo"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "requirement": "getDailySpendLimit backend function returns spending allocation divided by days remaining in the month",
-      "reason": "No getDailySpendLimit function is visible in the backend diff. Daily spend limit is computed only on the frontend.",
-      "evidence": [
-        "backend/main.mo",
-        "frontend/src/hooks/useQueries.ts"
-      ]
-    },
-    {
-      "id": "REQ-6",
-      "requirement": "Digital Locker toggle in Create Goal form activates the locker for that goal",
-      "reason": "The SavingsGoalTracker form includes a useLocker state and Switch toggle, but the addGoal call does not pass the locker flag — it only passes name, target, and deadline.",
-      "evidence": [
-        "frontend/src/components/SavingsGoalTracker.tsx"
+        "frontend/src/components/QRScannerModal.tsx"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "ProfileSetup screen requiring users to enter a display name before onboarding",
-      "reason": "The build request does not specify a separate profile name setup step; it only specifies income onboarding. The ProfileSetup component is an extra screen not requested.",
+      "description": "A data migration module (backend/migration.mo) was added to migrate old wallet transaction schema (renaming senderLabel to recipientLabel and adding transactionType field).",
+      "reason": "The build request does not mention any schema migration or backward-compatibility migration module. This was added beyond the scope of the requirements.",
       "evidence": [
-        "frontend/src/components/ProfileSetup.tsx",
-        "frontend/src/App.tsx"
+        "backend/migration.mo"
       ]
     },
     {
-      "description": "Dark mode theme support with full dark CSS variable set",
-      "reason": "The build request specifies a student-friendly teal/green theme for mobile but does not request dark mode support.",
+      "description": "QR code generation via external HTTP API endpoint (api.qrserver.com) used as fallback/primary QR rendering mechanism.",
+      "reason": "The build request explicitly constrains QR scanning/generation to client-side libraries only with no external service. Using api.qrserver.com violates this constraint and was not requested.",
       "evidence": [
-        "frontend/src/index.css"
+        "frontend/src/components/ReceiveMoneyModal.tsx"
+      ]
+    },
+    {
+      "description": "A canvas-based fallback QR drawing function (drawFallbackQR) that renders a pseudo-QR pattern using canvas 2D API when the external API fails.",
+      "reason": "This fallback pattern does not produce a valid scannable QR code and was not requested. It is a hallucinated feature that also does not satisfy the requirement for a real QR code library.",
+      "evidence": [
+        "frontend/src/components/ReceiveMoneyModal.tsx"
       ]
     }
   ],
   "confidence": 0.72,
   "changed_files": [
-    "all_files_summary.json",
     "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/index.css",
-    "frontend/index.html",
-    "frontend/src/App.tsx",
-    "frontend/src/components/BalanceCard.tsx",
-    "frontend/src/components/BottomNavigation.tsx",
-    "frontend/src/components/BudgetCalculator.tsx",
-    "frontend/src/components/Dashboard.tsx",
-    "frontend/src/components/ExpenseTracker.tsx",
-    "frontend/src/components/GoalCard.tsx",
-    "frontend/src/components/InvestmentCard.tsx",
-    "frontend/src/components/InvestmentSuggestions.tsx",
-    "frontend/src/components/Layout.tsx",
-    "frontend/src/components/LoginPage.tsx",
-    "frontend/src/components/OnboardingScreen.tsx",
-    "frontend/src/components/ProfileSetup.tsx",
-    "frontend/src/components/ProjectionTable.tsx",
-    "frontend/src/components/SavingsGoalTracker.tsx",
-    "frontend/src/hooks/useActor.ts",
-    "frontend/src/hooks/useInternetIdentity.ts",
+    "frontend/src/components/QRScannerModal.tsx",
+    "frontend/src/components/ReceiveMoneyModal.tsx",
+    "frontend/src/components/SendMoneyForm.tsx",
+    "frontend/src/components/TransactionListItem.tsx",
+    "frontend/src/components/Wallet.tsx",
     "frontend/src/hooks/useQueries.ts",
-    "frontend/src/index.css",
-    "frontend/src/main.tsx",
-    "frontend/src/utils/dateGrouping.ts",
-    "frontend/src/utils/urlParams.ts",
-    "frontend/tailwind.config.js",
     "project_state.json"
   ]
 }
