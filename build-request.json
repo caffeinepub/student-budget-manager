@@ -1,0 +1,223 @@
+{
+  "kind": "build_request",
+  "title": "Student Budget Manager — Full-Stack Web App",
+  "projectName": "Student Budget Manager",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Create a backend data model and actor that stores per-user financial profiles including: income sources (pocket money, stipend, part-time), auto-calculated budget allocations (spending, saving, investment percentages), expense log entries (amount, category, date, note), savings goals (name, target amount, current amount, deadline, locked status), and Digital Locker state (locked/unlocked, unlock condition type: goal-met or time-period, unlock date).",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Take student income (pocket money, stipend, part-time income)",
+          "Automatically divide money into: Spending, Saving, Investment",
+          "Digital locker that: Separates savings from spending money, Locks savings so user cannot spend it easily, Allows unlock only after goal or time period"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Backend stores income entries with source type (pocket_money | stipend | part_time) and amount.",
+        "Backend computes and stores allocation percentages and derived amounts for spending, saving, and investment.",
+        "Expense log supports create, read, and delete operations per user.",
+        "Savings goals can be created with a target amount, optional deadline, and locked flag.",
+        "Digital Locker unlock logic: goal is considered unlocked when current savings amount >= target, or when current date >= unlock date.",
+        "All state persists across canister upgrades using stable storage."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Implement backend query and update functions: addIncome, getProfile, setAllocationSplit, addExpense, getExpenses, addSavingsGoal, updateSavingsGoal, getSavingsGoals, getLockerStatus, requestUnlock (validates goal-met or time-period condition before unlocking), and getInvestmentSuggestions (returns static low-risk suggestion list based on monthly investable amount).",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Budget calculator",
+          "Expense tracking",
+          "Savings goal tracker",
+          "Investment suggestion (low-risk for students)"
+        ]
+      },
+      "acceptanceCriteria": [
+        "addIncome accepts source type and amount and updates total monthly income.",
+        "setAllocationSplit accepts spending/saving/investment percentages that must sum to 100.",
+        "addExpense deducts from available spending balance and logs the entry.",
+        "requestUnlock returns an error if neither the goal nor the time condition is satisfied.",
+        "getInvestmentSuggestions returns at least 3 low-risk suggestions (e.g., recurring deposit, government savings bond, index fund SIP) with description and minimum amount.",
+        "getDailySpendLimit returns spending allocation divided by days remaining in the month."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Build an Onboarding / Income Setup screen where students enter their total monthly income broken down by source (pocket money, stipend, part-time). Display a live preview of the auto-divided amounts as the user types, using default splits of 50% Spending, 30% Saving, 20% Investment. Allow the user to adjust the split percentages with a slider group that enforces a 100% total.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Take student income (pocket money, stipend, part-time income)",
+          "Automatically divide money into: Spending, Saving, Investment"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Three income source fields render: Pocket Money, Stipend, Part-time Income.",
+        "Total income is computed as the sum of all three fields.",
+        "Three allocation sliders (Spending, Saving, Investment) always sum to 100%.",
+        "Derived amounts (e.g., ₹X for Spending) update in real time as income or sliders change.",
+        "A 'Confirm & Save' button persists the income and split to the backend."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Build a Dashboard / Home screen showing: total monthly income, current spending balance with daily spend limit, savings balance (locked indicator if locker is active), investment allocation amount, a mini expense log of the last 5 transactions, and quick-action buttons to Add Expense, View Goals, and View Investments.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Show how much the student should: Spend daily, Save monthly, Invest safely"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Dashboard fetches profile and displays three balance cards: Spending, Saving, Investment.",
+        "Daily spend limit is prominently displayed under the Spending card.",
+        "Savings card shows a lock icon and 'Locked' badge when the Digital Locker is active.",
+        "Last 5 expense entries are listed with category icon, amount, and date.",
+        "Quick-action buttons navigate to the correct feature screens."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Build an Expense Tracker screen with a form to log expenses (amount, category selector: Food, Transport, Education, Entertainment, Health, Other, and optional note). Display a full scrollable expense history grouped by date. Show a spending progress bar indicating how much of the monthly spending allocation has been used.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Expense tracking"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Expense form includes numeric amount input, category dropdown, and text note field.",
+        "Submitting the form calls addExpense and refreshes the list without full page reload.",
+        "Expenses are grouped by date (Today, Yesterday, date label).",
+        "A progress bar shows used/total spending allocation with color change to amber when >75% used and red when >95% used.",
+        "Empty state message renders when no expenses exist."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Build a Savings Goal Tracker screen where students can create savings goals with a name, target amount, optional deadline, and choose to activate the Digital Locker for that goal. Each goal card shows a progress bar, days remaining, and current vs. target amount. A 'Top Up' button lets students move money from their spending balance into a goal.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Savings goal tracker",
+          "Digital locker that: Separates savings from spending money, Locks savings so user cannot spend it easily, Allows unlock only after goal or time period"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Create Goal form accepts: goal name, target amount, optional deadline date, and Digital Locker toggle.",
+        "Goal card shows name, progress bar (filled %), current amount, target amount, and deadline.",
+        "If locker is active, the card displays a lock icon and 'Locked — cannot withdraw' label.",
+        "Top Up button opens an amount input and transfers the amount from spending balance to goal.",
+        "requestUnlock is called when user taps 'Unlock Goal'; shows success or error message based on backend response."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Build an Investment Suggestions screen that displays at least 3 curated low-risk investment options appropriate for students (e.g., Recurring Deposit, Public Provident Fund, Index Fund SIP). Each suggestion card shows the option name, brief description, recommended minimum monthly amount, expected annual return range, and a risk level badge ('Very Low' or 'Low'). Include a sample calculation showing projected growth over 1, 3, and 5 years based on the user's monthly investment allocation.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Investment suggestion (low-risk for students)",
+          "Sample calculations"
+        ]
+      },
+      "acceptanceCriteria": [
+        "At least 3 investment suggestion cards are rendered.",
+        "Each card shows: name, description, minimum amount, expected return range, risk badge.",
+        "A projection table or chart shows growth for 1, 3, and 5 years using the user's monthly investment amount and compound interest formula.",
+        "If monthly investment amount is ₹0, a prompt guides the user to adjust their allocation split."
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "Build a Budget Calculator screen (standalone tool) where a student can input a hypothetical monthly income and desired split percentages, instantly see computed spending, saving, and investment amounts, the resulting daily spend limit, and a sample monthly expense breakdown across common student categories (food, transport, education, entertainment).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Budget calculator",
+          "Sample calculations"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Calculator is accessible from the main navigation.",
+        "Income input and three percentage sliders update all output values in real time.",
+        "Daily spend limit updates automatically based on spending amount and current month's days.",
+        "Sample category breakdown shows recommended allocation of spending amount across at least 4 categories.",
+        "Calculator does not save data — it is a stateless tool."
+      ]
+    },
+    {
+      "id": "REQ-9",
+      "text": "Design and implement a student-friendly visual theme: a clean, energetic color palette using greens and teals (representing growth and financial health) with warm accent colors for alerts. Use a card-based layout with rounded corners, clear typography hierarchy, and simple iconography. The UI must be optimized for mobile viewports (max-width 430px) with a bottom navigation bar for main sections: Dashboard, Expenses, Goals, Invest, Calculator.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "Keep the app simple, student-friendly, and low-data usage"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All screens respect a max-width of 430px with centered layout on wider screens.",
+        "Bottom navigation bar renders with 5 tabs: Dashboard, Expenses, Goals, Invest, Calculator.",
+        "Active tab is visually highlighted.",
+        "Color palette consistently uses green/teal primary tones with amber/red for warnings.",
+        "All interactive elements (buttons, inputs) meet minimum 44px touch target size."
+      ]
+    }
+  ],
+  "constraints": [
+    "All Motoko logic must remain in the single backend/main.mo actor.",
+    "No external payment APIs, SMS, or email integrations.",
+    "No real brokerage or financial API integrations — investment suggestions are static/curated content only.",
+    "Frontend immutable paths (hooks, main.tsx, ui components) must not be modified.",
+    "UI must be fully functional on mobile viewports (≤430px)."
+  ],
+  "nonGoals": [
+    "Real-money transactions or payment gateway integration.",
+    "Actual investment account linking or brokerage API.",
+    "SMS or email notifications.",
+    "Multi-currency support.",
+    "Social or peer features.",
+    "Monetization model implementation (ads, premium tier) — document only, do not build.",
+    "Admin dashboard or teacher/parent monitoring views."
+  ],
+  "imageRequirements": {
+    "required": [
+      "Student Budget Manager app logo — a minimalist piggy bank combined with a graduation cap, in teal and green tones on a white background (logo.dim_256x256.png)",
+      "Digital Locker illustration — a friendly cartoon padlock with a coin slot, in green and gold tones (locker-illustration.dim_400x300.png)",
+      "Empty state illustration for no expenses — a clean line-art wallet with a happy face (empty-expenses.dim_300x200.png)",
+      "Empty state illustration for no savings goals — a simple mountain with a flag at the peak in teal tones (empty-goals.dim_300x200.png)"
+    ],
+    "edits": []
+  }
+}

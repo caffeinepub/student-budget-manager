@@ -1,0 +1,21 @@
+{
+  "frontend/src/index.css": "Global styles with a student-friendly teal/green OKLCH color palette, custom fonts (Plus Jakarta Sans), utility classes for mobile-first card layouts, gradient helpers for spending/saving/investing categories, and touch-target sizing.",
+  "frontend/tailwind.config.js": "Extended Tailwind config with Plus Jakarta Sans font, custom color tokens (warning, success, invest), mobile-first container max-width of 430px, custom border radii, and card shadow utilities.",
+  "frontend/src/hooks/useQueries.ts": "All React Query hooks for backend integration — user profile CRUD, income addition, allocation split, expense CRUD, savings goals CRUD, digital locker status/unlock, and investment suggestions.",
+  "frontend/src/App.tsx": "Main app with TanStack Router setup, five routes (/, /onboarding, /expenses, /goals, /invest, /calculator), authentication guard, profile setup flow, and ThemeProvider/Toaster wrappers.",
+  "frontend/src/components/Layout.tsx": "Thin layout wrapper that centers content in a 430px mobile container and conditionally renders the BottomNavigation for authenticated users.",
+  "frontend/src/components/BottomNavigation.tsx": "Fixed bottom nav bar with five tabs (Home, Expenses, Goals, Invest, Calculator) using TanStack Router for active-state detection and 44px touch targets.",
+  "frontend/src/components/LoginPage.tsx": "Full-screen login page with app branding, feature highlights, and Internet Identity login button.",
+  "frontend/src/components/ProfileSetup.tsx": "Modal-style screen for first-time users to enter their display name before accessing the app.",
+  "frontend/src/components/OnboardingScreen.tsx": "Income setup screen with three source inputs (Pocket Money, Stipend, Part-time), linked allocation sliders that always sum to 100%, live amount previews, and a Confirm & Save button that persists data to the backend.",
+  "frontend/src/components/BalanceCard.tsx": "Reusable gradient card displaying a financial category (Spending/Saving/Investment) with amount, subtitle, and optional lock indicator.",
+  "frontend/src/components/Dashboard.tsx": "Home screen showing greeting, total income banner with daily limit, three balance cards, quick-action buttons, and a recent expenses list with category icons.",
+  "frontend/src/components/ExpenseTracker.tsx": "Expense tracking screen with a spending progress bar (green/amber/red), inline add-expense form, and a date-grouped scrollable expense history with empty state illustration.",
+  "frontend/src/components/GoalCard.tsx": "Reusable savings goal card with progress bar, lock status, inline top-up input, and unlock button that calls the backend requestUnlock method.",
+  "frontend/src/components/SavingsGoalTracker.tsx": "Savings goals screen with Digital Locker status banner, goal creation form (name, target, deadline, locker toggle), and a list of GoalCard components with empty state illustrations.",
+  "frontend/src/components/InvestmentCard.tsx": "Reusable investment option card showing name, description, risk badge, return range, minimum amount, and user's monthly allocation.",
+  "frontend/src/components/ProjectionTable.tsx": "Compound interest projection table showing invested vs. future value over 1, 3, and 5 years for a given monthly amount and annual return rate.",
+  "frontend/src/components/InvestmentSuggestions.tsx": "Investment screen with monthly investment banner, three static low-risk suggestion cards (RD, PPF, Index Fund SIP), and growth projection tables per option.",
+  "frontend/src/components/BudgetCalculator.tsx": "Stateless budget calculator with income input, linked allocation sliders, daily spend limit display, savings/investment summaries, and a recommended spending breakdown across four student categories.",
+  "frontend/src/utils/dateGrouping.ts": "Utility function that groups an array of Expense objects by date labels (Today, Yesterday, or formatted date string) sorted in descending order."
+}
