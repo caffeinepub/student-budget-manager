@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 7,
+  "projectStateVersion": 9,
   "summary": "Mobile app called Student Budget Manager for students. Takes student income (pocket money, stipend, part-time) and automatically divides it into Spending, Saving, and Investment buckets. Shows daily spend limits, monthly savings targets, and safe investment amounts. Includes budget calculator, expense tracking, savings goal tracker, low-risk investment suggestions, and a Digital Locker that locks savings until a goal or time period is met. Must be simple, student-friendly, and low-data usage.",
   "architectural_notes": [
     "App must be low-data usage and student-friendly (simple UX)",
@@ -114,6 +114,14 @@
       "title": "Redesign the Wallet screen UI to feel like a modern peer-to-peer payment app (e.g., similar to Google Pay or PhonePe) without requiring a bank account. The layout should include: a large wallet balance at the top with a gradient card, a horizontal row of action buttons (Receive / Scan & Pay / Transfer to Locker) with icons, a 'My QR Code' expandable section in Receive, a full-screen scanner modal for Scan & Pay, and a grouped transaction history at the bottom showing sent, received, and locker-transfer transactions each with distinct color-coded icons.",
       "reqIds": [
         "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-add-funds-receive-money-form-section-from-the-wallet-screen-frontend-src-components-wallet-tsx-that-allows-users-to-manually-enter-an-amount-and-sender-label-to-simulate-receiving-money-the-collapsible-form-its-trigger-button-and-any-related-state-variables-should-be-deleted-the-wallet-balance-display-transaction-history-transfer-to-locker-section-qr-code-receive-modal-and-scan-pay-functionality-must-remain-untouched",
+      "title": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen (frontend/src/components/Wallet.tsx) that allows users to manually enter an amount and sender label to simulate receiving money. The collapsible form, its trigger button, and any related state variables should be deleted. The wallet balance display, transaction history, Transfer to Locker section, QR code (Receive modal), and Scan & Pay functionality must remain untouched.",
+      "reqIds": [
+        "REQ-18"
       ],
       "version": 1
     }
@@ -232,6 +240,14 @@
       "summary": "Implement a new backend function sendFundsFromWallet in the main Motoko actor. The function accepts a recipient identifier (Text), amount (Nat), and optional note (Text). It validates that the caller's wallet balance is sufficient, deducts the amount, records an outgoing transaction with type 'sent', recipient label, timestamp, and note, and returns a Result indicating success or an error message (e.g., #insufficientFunds, #userNotFound).",
       "reqIds": [
         "REQ-16"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "Remove or disable the addFundsToWallet public function from the backend actor (backend/main.mo) since it will no longer be called from the frontend. If removing causes downstream type errors in other functions, stub it out with a deprecation comment instead.",
+      "reqIds": [
+        "REQ-19"
       ],
       "status": "pending"
     }

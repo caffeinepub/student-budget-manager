@@ -2,32 +2,9 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-add-a-qr-code-generation-feature-to-the-wallet-screen-display-a-unique-scannable-qr-code-representing-the-user-s-wallet-identity-e-g-their-principal-id-or-a-user-friendly-payment-handle-this-qr-code-should-be-shown-in-the-receive-money-section-so-others-can-scan-it-to-send-money-use-the-qrcode-react-or-equivalent-library-to-render-the-qr-code-client-side",
-      "featureTitle": "Add a QR code generation feature to the Wallet screen: display a unique, scannable QR code representing the user's wallet identity (e.g., their principal ID or a user-friendly payment handle). This QR code should be shown in the 'Receive Money' section so others can scan it to send money. Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
+      "featureId": "feature-remove-the-add-funds-receive-money-form-section-from-the-wallet-screen-frontend-src-components-wallet-tsx-that-allows-users-to-manually-enter-an-amount-and-sender-label-to-simulate-receiving-money-the-collapsible-form-its-trigger-button-and-any-related-state-variables-should-be-deleted-the-wallet-balance-display-transaction-history-transfer-to-locker-section-qr-code-receive-modal-and-scan-pay-functionality-must-remain-untouched",
+      "featureTitle": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen (frontend/src/components/Wallet.tsx) that allows users to manually enter an amount and sender label to simulate receiving money. The collapsible form, its trigger button, and any related state variables should be deleted. The wallet balance display, transaction history, Transfer to Locker section, QR code (Receive modal), and Scan & Pay functionality must remain untouched.",
       "files": [
-        "frontend/src/components/Wallet.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "qr-code@1.0.0",
-        "camera@1.0.0"
-      ],
-      "testIds": [
-        "REQ-14"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-a-qr-code-scanner-to-the-wallet-screen-that-allows-the-user-to-scan-another-person-s-payment-qr-code-to-send-money-to-them-use-the-device-camera-via-the-html5-qrcode-or-react-qr-reader-library-after-a-successful-scan-pre-fill-a-send-money-form-with-the-recipient-identifier-and-allow-the-user-to-enter-an-amount-and-optional-note-on-confirmation-call-a-new-backend-function-sendfundsfromwallet-that-deducts-the-amount-from-the-sender-s-wallet-balance-and-records-an-outgoing-transaction",
-      "featureTitle": "Add a QR code scanner to the Wallet screen that allows the user to scan another person's payment QR code to send money to them. Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library. After a successful scan, pre-fill a 'Send Money' form with the recipient identifier and allow the user to enter an amount and optional note. On confirmation, call a new backend function sendFundsFromWallet that deducts the amount from the sender's wallet balance and records an outgoing transaction.",
-      "files": [
-        "frontend/src/components/QRScannerModal.tsx",
-        "frontend/src/components/SendMoneyForm.tsx",
         "frontend/src/components/Wallet.tsx",
         "frontend/src/hooks/useQueries.ts"
       ],
@@ -42,30 +19,7 @@
         "camera@1.0.0"
       ],
       "testIds": [
-        "REQ-15"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-redesign-the-wallet-screen-ui-to-feel-like-a-modern-peer-to-peer-payment-app-e-g-similar-to-google-pay-or-phonepe-without-requiring-a-bank-account-the-layout-should-include-a-large-wallet-balance-at-the-top-with-a-gradient-card-a-horizontal-row-of-action-buttons-receive-scan-pay-transfer-to-locker-with-icons-a-my-qr-code-expandable-section-in-receive-a-full-screen-scanner-modal-for-scan-pay-and-a-grouped-transaction-history-at-the-bottom-showing-sent-received-and-locker-transfer-transactions-each-with-distinct-color-coded-icons",
-      "featureTitle": "Redesign the Wallet screen UI to feel like a modern peer-to-peer payment app (e.g., similar to Google Pay or PhonePe) without requiring a bank account. The layout should include: a large wallet balance at the top with a gradient card, a horizontal row of action buttons (Receive / Scan & Pay / Transfer to Locker) with icons, a 'My QR Code' expandable section in Receive, a full-screen scanner modal for Scan & Pay, and a grouped transaction history at the bottom showing sent, received, and locker-transfer transactions each with distinct color-coded icons.",
-      "files": [
-        "frontend/src/components/ReceiveMoneyModal.tsx",
-        "frontend/src/components/TransactionListItem.tsx",
-        "frontend/src/components/Wallet.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "qr-code@1.0.0",
-        "camera@1.0.0"
-      ],
-      "testIds": [
-        "REQ-17"
+        "REQ-18"
       ],
       "confidence": "high"
     }

@@ -1,58 +1,14 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T07:49:21.694Z",
-  "summary": "The diff implements most of the QR code scanner and payment features requested. REQ-16 (backend sendFundsFromWallet), REQ-15 (QR scanner + SendMoneyForm), REQ-14 (ReceiveMoneyModal with QR display), and REQ-17 (redesigned Wallet UI) are all partially addressed. However, there are notable gaps: the QR code in ReceiveMoneyModal uses an external API service (api.qrserver.com) instead of a client-side library like 'qrcode.react' as required, and the useQRScanner hook is referenced but not shown in the diff (potentially using a custom implementation rather than 'html5-qrcode' or 'react-qr-reader' as specified). Several acceptance criteria details are unverifiable due to truncation.",
-  "missing_requirements": [
-    {
-      "id": "REQ-14",
-      "requirement": "Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
-      "reason": "ReceiveMoneyModal.tsx uses an external HTTP API (api.qrserver.com) to generate QR codes rather than a client-side library like 'qrcode.react'. The constraint explicitly requires client-side rendering with no external scanning/generation service.",
-      "evidence": [
-        "frontend/src/components/ReceiveMoneyModal.tsx"
-      ]
-    },
-    {
-      "id": "REQ-15",
-      "requirement": "Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library.",
-      "reason": "QRScannerModal.tsx uses a custom hook 'useQRScanner' from '../qr-code/useQRScanner' rather than the specified 'html5-qrcode' or 'react-qr-reader' libraries. The custom hook file is not shown in the diff, so it cannot be confirmed whether it wraps one of the required libraries.",
-      "evidence": [
-        "frontend/src/components/QRScannerModal.tsx"
-      ]
-    }
-  ],
-  "hallucinated_features": [
-    {
-      "description": "A data migration module (backend/migration.mo) was added to migrate old wallet transaction schema (renaming senderLabel to recipientLabel and adding transactionType field).",
-      "reason": "The build request does not mention any schema migration or backward-compatibility migration module. This was added beyond the scope of the requirements.",
-      "evidence": [
-        "backend/migration.mo"
-      ]
-    },
-    {
-      "description": "QR code generation via external HTTP API endpoint (api.qrserver.com) used as fallback/primary QR rendering mechanism.",
-      "reason": "The build request explicitly constrains QR scanning/generation to client-side libraries only with no external service. Using api.qrserver.com violates this constraint and was not requested.",
-      "evidence": [
-        "frontend/src/components/ReceiveMoneyModal.tsx"
-      ]
-    },
-    {
-      "description": "A canvas-based fallback QR drawing function (drawFallbackQR) that renders a pseudo-QR pattern using canvas 2D API when the external API fails.",
-      "reason": "This fallback pattern does not produce a valid scannable QR code and was not requested. It is a hallucinated feature that also does not satisfy the requirement for a real QR code library.",
-      "evidence": [
-        "frontend/src/components/ReceiveMoneyModal.tsx"
-      ]
-    }
-  ],
-  "confidence": 0.72,
+  "generatedAt": "2026-02-26T08:01:50.838Z",
+  "summary": "The diff implements both REQ-18 and REQ-19. The frontend Wallet.tsx removes the Add Funds/Receive Money form, its trigger button, and related state/mutation calls. The useQueries.ts hook file removes the useAddFundsToWallet mutation. The backend main.mo appears to have the addFundsToWallet function removed or stubbed. All preserved elements (balance display, Transfer to Locker, QR/Receive modals, SendMoneyForm, transaction history) remain in Wallet.tsx. The file summary for useQueries.ts explicitly states the useAddFundsToWallet mutation hook has been removed.",
+  "missing_requirements": [],
+  "hallucinated_features": [],
+  "confidence": 0.88,
   "changed_files": [
     "backend/main.mo",
-    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/QRScannerModal.tsx",
-    "frontend/src/components/ReceiveMoneyModal.tsx",
-    "frontend/src/components/SendMoneyForm.tsx",
-    "frontend/src/components/TransactionListItem.tsx",
     "frontend/src/components/Wallet.tsx",
     "frontend/src/hooks/useQueries.ts",
     "project_state.json"

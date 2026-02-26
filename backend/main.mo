@@ -11,9 +11,7 @@ import Order "mo:core/Order";
 import Nat "mo:core/Nat";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   // ── Access Control ─────────────────────────────────────
   let accessControlState = AccessControl.initState();
@@ -440,30 +438,12 @@ actor {
     p.wallet.balance;
   };
 
-  public shared ({ caller }) func addFundsToWallet(amount : Float, senderLabel : ?Text, note : Text) : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can add funds");
-    };
-    let existing = getOrCreateProfile(caller);
-    let newTransaction : WalletTransaction = {
-      id = nextTransactionId;
-      amount;
-      recipientLabel = senderLabel;
-      transactionType = "received";
-      timestamp = Time.now();
-      note;
-    };
-    nextTransactionId += 1;
-
-    let updated : CompleteProfile = {
-      profile = existing.profile;
-      wallet = {
-        balance = existing.wallet.balance + amount;
-        transactions = existing.wallet.transactions.concat([newTransaction]);
-        transfers = existing.wallet.transfers;
-      };
-    };
-    profiles.add(caller, updated);
+  // ── DEPRECATED: addFundsToWallet ───────────────────────
+  // This function is intentionally left unimplemented (deprecated)
+  // due to changes in the application design.
+  // Do not call from the frontend!
+  public shared ({ caller }) func addFundsToWallet(_amount : Float, _senderLabel : ?Text, _note : Text) : async () {
+    Runtime.trap("addFundsToWallet function is deprecated and should not be called!");
   };
 
   public shared ({ caller }) func transferToLocker(amount : Float, note : Text) : async () {

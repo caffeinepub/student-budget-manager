@@ -1,104 +1,57 @@
 {
   "kind": "build_request",
-  "title": "Add QR Code Scanner for Payments and Money Receiving",
-  "projectName": "Student Budget Manager",
+  "title": "Remove Add Funds feature from Wallet screen",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-14",
-      "text": "Add a QR code generation feature to the Wallet screen: display a unique, scannable QR code representing the user's wallet identity (e.g., their principal ID or a user-friendly payment handle). This QR code should be shown in the 'Receive Money' section so others can scan it to send money. Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
+      "id": "REQ-18",
+      "text": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen (frontend/src/components/Wallet.tsx) that allows users to manually enter an amount and sender label to simulate receiving money. The collapsible form, its trigger button, and any related state variables should be deleted. The wallet balance display, transaction history, Transfer to Locker section, QR code (Receive modal), and Scan & Pay functionality must remain untouched.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-6"
         ],
         "quotes": [
-          "add scanner for payment and money receive make it like a proper payment app but no bank account needed"
+          "remove the feature of adding funds"
         ]
       },
       "acceptanceCriteria": [
-        "The Wallet screen's 'Receive Money' section displays a QR code generated from the user's wallet identifier (principal ID or display name)",
-        "The QR code is visually prominent with a label such as 'Scan to Pay Me'",
-        "A 'Copy ID' or 'Share' button is shown below the QR code",
-        "The QR code renders correctly on mobile viewports (max-width 430px)"
+        "The Wallet screen no longer shows any 'Add Funds', 'Receive Money' form, or any input fields for entering an amount and sender label to add money.",
+        "No button or UI element triggers an 'add funds' form on the Wallet screen.",
+        "The addFundsToWallet mutation call is removed from the Wallet component.",
+        "Wallet balance card, Transfer to Locker section, QR code Receive modal, Scan & Pay scanner modal, and transaction history list are all still present and functional.",
+        "No TypeScript or build errors are introduced."
       ]
     },
     {
-      "id": "REQ-15",
-      "text": "Add a QR code scanner to the Wallet screen that allows the user to scan another person's payment QR code to send money to them. Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library. After a successful scan, pre-fill a 'Send Money' form with the recipient identifier and allow the user to enter an amount and optional note. On confirmation, call a new backend function sendFundsFromWallet that deducts the amount from the sender's wallet balance and records an outgoing transaction.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "add scanner for payment and money receive make it like a proper payment app but no bank account needed"
-        ]
-      },
-      "acceptanceCriteria": [
-        "A 'Scan & Pay' button on the Wallet screen opens a full-screen camera QR scanner overlay",
-        "Successfully scanning a valid payment QR code closes the scanner and pre-fills the recipient field in a 'Send Money' form",
-        "The user can enter an amount and optional note before confirming the payment",
-        "On confirmation, the backend deducts the amount from the wallet balance and records the outgoing transaction with type 'sent', recipient label, timestamp, and note",
-        "If wallet balance is insufficient, an error toast is shown and no funds are deducted",
-        "Success and error toasts are shown for all send actions",
-        "The new transaction appears in the wallet transaction history immediately after sending"
-      ]
-    },
-    {
-      "id": "REQ-16",
-      "text": "Implement a new backend function sendFundsFromWallet in the main Motoko actor. The function accepts a recipient identifier (Text), amount (Nat), and optional note (Text). It validates that the caller's wallet balance is sufficient, deducts the amount, records an outgoing transaction with type 'sent', recipient label, timestamp, and note, and returns a Result indicating success or an error message (e.g., #insufficientFunds, #userNotFound).",
+      "id": "REQ-19",
+      "text": "Remove or disable the addFundsToWallet public function from the backend actor (backend/main.mo) since it will no longer be called from the frontend. If removing causes downstream type errors in other functions, stub it out with a deprecation comment instead.",
       "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-6"
         ],
         "quotes": [
-          "add scanner for payment and money receive make it like a proper payment app but no bank account needed"
+          "remove the feature of adding funds"
         ]
       },
       "acceptanceCriteria": [
-        "sendFundsFromWallet is callable only by authenticated users (access control enforced)",
-        "Returns an error variant if wallet balance < requested amount",
-        "On success, wallet balance is decremented by the exact amount",
-        "An outgoing transaction record is appended with: amount, type='sent', recipient label, timestamp (Time.now()), and note",
-        "getWalletTransactions returns this new record as the most recent entry"
-      ]
-    },
-    {
-      "id": "REQ-17",
-      "text": "Redesign the Wallet screen UI to feel like a modern peer-to-peer payment app (e.g., similar to Google Pay or PhonePe) without requiring a bank account. The layout should include: a large wallet balance at the top with a gradient card, a horizontal row of action buttons (Receive / Scan & Pay / Transfer to Locker) with icons, a 'My QR Code' expandable section in Receive, a full-screen scanner modal for Scan & Pay, and a grouped transaction history at the bottom showing sent, received, and locker-transfer transactions each with distinct color-coded icons.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "make it like a proper payment app but no bank account needed"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Wallet balance is displayed prominently at the top in a styled gradient card",
-        "Three action buttons (Receive, Scan & Pay, Transfer to Locker) are shown in a horizontal icon-button row below the balance",
-        "Tapping 'Receive' expands or opens a modal showing the user's QR code and copyable payment ID",
-        "Tapping 'Scan & Pay' opens a camera scanner overlay",
-        "Transaction history uses distinct icons/colors for received (green), sent (red/orange), and locker-transfer (teal) entries",
-        "Layout is fully functional and visually polished on mobile viewports (max-width 430px)"
+        "The addFundsToWallet function is either removed or clearly marked as deprecated/no-op in backend/main.mo.",
+        "All other backend functions (getWalletBalance, transferToLocker, getWalletTransactions, sendFundsFromWallet) continue to compile and behave correctly.",
+        "No Motoko compilation errors are introduced."
       ]
     }
   ],
   "constraints": [
-    "No real bank account integration — all payments are simulated within the app's internal wallet system",
-    "QR scanning must use the device camera via a client-side library only; no external scanning service",
-    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui",
-    "All backend logic must remain in the single main actor (backend/main.mo)"
+    "Do not remove or modify the QR code Receive modal (ReceiveMoneyModal), the Scan & Pay scanner modal (QRScannerModal), or the SendMoneyForm component.",
+    "Do not alter the Transfer to Locker section or its backend function.",
+    "Do not modify any immutable frontend paths (hooks, main.tsx, ui components)."
   ],
   "nonGoals": [
-    "Real bank account linking or actual financial transactions",
-    "External payment gateway integration (e.g., Stripe, Razorpay)",
-    "SMS OTP or phone number verification",
-    "Peer-to-peer real-time money transfer between different users' actual balances (only the sender's own wallet is affected in this simulation)",
-    "NFC-based payments"
+    "Redesigning the Wallet screen layout beyond removing the Add Funds section.",
+    "Removing or modifying the wallet balance display.",
+    "Changing the transaction history or its grouping logic.",
+    "Modifying any other screen or component outside the Wallet."
   ],
   "imageRequirements": {
     "required": [],

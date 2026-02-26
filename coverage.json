@@ -1,90 +1,47 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T07:49:21.698Z",
+  "generatedAt": "2026-02-26T08:01:50.842Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 3,
+    "total": 2,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-14",
-        "summary": "Add a QR code generation feature to the Wallet screen: display a unique, scannable QR code representing the user's wallet identity (e.g., their principal ID or a user-friendly payment handle). This QR code should be shown in the 'Receive Money' section so others can scan it to send money. Use the 'qrcode.react' or equivalent library to render the QR code client-side.",
+        "id": "REQ-18",
+        "summary": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen (frontend/src/components/Wallet.tsx) that allows users to manually enter an amount and sender label to simulate receiving money. The collapsible form, its trigger button, and any related state variables should be deleted. The wallet balance display, transaction history, Transfer to Locker section, QR code (Receive modal), and Scan & Pay functionality must remain untouched.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/package.json",
-          "frontend/src/components/Wallet.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/Wallet.tsx"
-        ]
-      },
-      {
-        "id": "REQ-15",
-        "summary": "Add a QR code scanner to the Wallet screen that allows the user to scan another person's payment QR code to send money to them. Use the device camera via the 'html5-qrcode' or 'react-qr-reader' library. After a successful scan, pre-fill a 'Send Money' form with the recipient identifier and allow the user to enter an amount and optional note. On confirmation, call a new backend function sendFundsFromWallet that deducts the amount from the sender's wallet balance and records an outgoing transaction.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/QRScannerModal.tsx",
-          "frontend/src/components/SendMoneyForm.tsx",
           "frontend/src/components/Wallet.tsx",
           "frontend/src/hooks/useQueries.ts"
         ],
         "matchedFiles": [
-          "frontend/src/components/QRScannerModal.tsx",
-          "frontend/src/components/SendMoneyForm.tsx",
           "frontend/src/components/Wallet.tsx",
           "frontend/src/hooks/useQueries.ts"
         ]
       },
       {
-        "id": "REQ-16",
-        "summary": "Implement a new backend function sendFundsFromWallet in the main Motoko actor. The function accepts a recipient identifier (Text), amount (Nat), and optional note (Text). It validates that the caller's wallet balance is sufficient, deducts the amount, records an outgoing transaction with type 'sent', recipient label, timestamp, and note, and returns a Result indicating success or an error message (e.g., #insufficientFunds, #userNotFound).",
+        "id": "REQ-19",
+        "summary": "Remove or disable the addFundsToWallet public function from the backend actor (backend/main.mo) since it will no longer be called from the frontend. If removing causes downstream type errors in other functions, stub it out with a deprecation comment instead.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
-      },
-      {
-        "id": "REQ-17",
-        "summary": "Redesign the Wallet screen UI to feel like a modern peer-to-peer payment app (e.g., similar to Google Pay or PhonePe) without requiring a bank account. The layout should include: a large wallet balance at the top with a gradient card, a horizontal row of action buttons (Receive / Scan & Pay / Transfer to Locker) with icons, a 'My QR Code' expandable section in Receive, a full-screen scanner modal for Scan & Pay, and a grouped transaction history at the bottom showing sent, received, and locker-transfer transactions each with distinct color-coded icons.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/Wallet.tsx",
-          "frontend/src/components/ReceiveMoneyModal.tsx",
-          "frontend/src/components/TransactionListItem.tsx",
-          "frontend/src/components/Wallet.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/Wallet.tsx",
-          "frontend/src/components/ReceiveMoneyModal.tsx",
-          "frontend/src/components/TransactionListItem.tsx",
-          "frontend/src/components/Wallet.tsx"
-        ]
       }
     ]
   },
   "changedFiles": [
     "backend/main.mo",
-    "backend/migration.mo",
     "build-request.json",
-    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
     "frontend/src/backend.d.ts",
     "frontend/src/backend.ts",
-    "frontend/src/camera/useCamera.ts",
-    "frontend/src/components/QRScannerModal.tsx",
-    "frontend/src/components/ReceiveMoneyModal.tsx",
-    "frontend/src/components/SendMoneyForm.tsx",
-    "frontend/src/components/TransactionListItem.tsx",
     "frontend/src/components/Wallet.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
     "frontend/src/hooks/useQueries.ts",
-    "frontend/src/qr-code/useQRScanner.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import {
   useGetWalletBalance,
   useGetWalletTransactions,
-  useAddFundsToWallet,
   useTransferToLocker,
 } from '../hooks/useQueries';
 import { useGetCallerUserProfile } from '../hooks/useQueries';
@@ -15,14 +14,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   Wallet as WalletIcon,
-  ArrowDownCircle,
   Lock,
   Loader2,
   RefreshCw,
   QrCode,
   ScanLine,
-  Plus,
-  ChevronDown,
   ChevronUp,
 } from 'lucide-react';
 import type { WalletTransaction } from '../backend';
@@ -81,18 +77,11 @@ export default function Wallet() {
   const [showSendForm, setShowSendForm] = useState(false);
   const [scannedRecipient, setScannedRecipient] = useState('');
 
-  // Add funds form state (collapsible)
-  const [showAddFunds, setShowAddFunds] = useState(false);
-  const [receiveAmount, setReceiveAmount] = useState('');
-  const [senderLabel, setSenderLabel] = useState('');
-  const [receiveNote, setReceiveNote] = useState('');
-
   // Transfer to Locker form state (collapsible)
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNote, setTransferNote] = useState('');
 
-  const addFunds = useAddFundsToWallet();
   const transferToLocker = useTransferToLocker();
 
   // Payment ID: use display name + principal short form
@@ -107,28 +96,6 @@ export default function Wallet() {
     setShowScanner(false);
     setScannedRecipient(data);
     setShowSendForm(true);
-  };
-
-  const handleReceive = async () => {
-    const amount = parseFloat(receiveAmount);
-    if (!receiveAmount || isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    try {
-      await addFunds.mutateAsync({
-        amount,
-        senderLabel: senderLabel.trim() || null,
-        note: receiveNote.trim(),
-      });
-      toast.success(`₹${formatINR(amount)} added to your wallet!`);
-      setReceiveAmount('');
-      setSenderLabel('');
-      setReceiveNote('');
-      setShowAddFunds(false);
-    } catch {
-      toast.error('Failed to add funds. Please try again.');
-    }
   };
 
   const handleTransfer = async () => {
@@ -311,85 +278,6 @@ export default function Wallet() {
           </div>
         )}
 
-        {/* Add Funds Section */}
-        <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
-          <button
-            onClick={() => setShowAddFunds(!showAddFunds)}
-            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/30 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-success/10 flex items-center justify-center">
-                <Plus size={15} className="text-success" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold">Add Funds</p>
-                <p className="text-[10px] text-muted-foreground">Simulate receiving money</p>
-              </div>
-            </div>
-            {showAddFunds ? (
-              <ChevronUp size={16} className="text-muted-foreground" />
-            ) : (
-              <ChevronDown size={16} className="text-muted-foreground" />
-            )}
-          </button>
-
-          {showAddFunds && (
-            <>
-              <Separator />
-              <div className="p-4 space-y-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Amount (₹) *</Label>
-                  <Input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={receiveAmount}
-                    onChange={(e) => setReceiveAmount(e.target.value)}
-                    className="h-10 rounded-xl text-sm"
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Sender Label (optional)</Label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. Mom, Freelance, Scholarship"
-                    value={senderLabel}
-                    onChange={(e) => setSenderLabel(e.target.value)}
-                    className="h-10 rounded-xl text-sm"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Note (optional)</Label>
-                  <Input
-                    type="text"
-                    placeholder="Add a note"
-                    value={receiveNote}
-                    onChange={(e) => setReceiveNote(e.target.value)}
-                    className="h-10 rounded-xl text-sm"
-                  />
-                </div>
-                <Button
-                  onClick={handleReceive}
-                  disabled={addFunds.isPending}
-                  className="w-full h-10 rounded-xl text-sm font-semibold"
-                >
-                  {addFunds.isPending ? (
-                    <>
-                      <Loader2 size={14} className="mr-2 animate-spin" />
-                      Adding Funds...
-                    </>
-                  ) : (
-                    <>
-                      <ArrowDownCircle size={14} className="mr-2" />
-                      Add to Wallet
-                    </>
-                  )}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-
         {/* Transaction History */}
         <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
@@ -421,7 +309,7 @@ export default function Wallet() {
               </div>
               <p className="text-sm font-semibold text-muted-foreground">No transactions yet</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Add funds or scan a QR code to get started
+                Scan a QR code to send money or share your QR to receive
               </p>
             </div>
           ) : (
@@ -457,10 +345,13 @@ export default function Wallet() {
               caffeine.ai
             </a>
           </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            © {new Date().getFullYear()} Student Finance App
+          </p>
         </div>
       </div>
 
-      {/* QR Scanner Modal */}
+      {/* QR Scanner — full-screen overlay, conditionally rendered */}
       {showScanner && (
         <QRScannerModal
           onScan={handleQRScan}
@@ -468,7 +359,6 @@ export default function Wallet() {
         />
       )}
 
-      {/* Receive Money Modal */}
       <ReceiveMoneyModal
         open={showReceive}
         onClose={() => setShowReceive(false)}
@@ -476,7 +366,7 @@ export default function Wallet() {
         displayName={displayName}
       />
 
-      {/* Send Money Form */}
+      {/* Send Money Form — uses prefillRecipient prop */}
       <SendMoneyForm
         open={showSendForm}
         onClose={() => {

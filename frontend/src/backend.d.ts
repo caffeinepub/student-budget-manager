@@ -77,7 +77,7 @@ export enum UserRole {
 }
 export interface backendInterface {
     addExpense(amount: number, category: string, note: string): Promise<void>;
-    addFundsToWallet(amount: number, senderLabel: string | null, note: string): Promise<void>;
+    addFundsToWallet(_amount: number, _senderLabel: string | null, _note: string): Promise<void>;
     addIncome(name: string, amount: number): Promise<void>;
     addSavingsGoal(name: string, target: number, deadline: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;

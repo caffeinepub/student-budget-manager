@@ -289,30 +289,6 @@ export function useGetWalletTransactions() {
   });
 }
 
-export function useAddFundsToWallet() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      amount,
-      senderLabel,
-      note,
-    }: {
-      amount: number;
-      senderLabel: string | null;
-      note: string;
-    }) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.addFundsToWallet(amount, senderLabel, note);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['walletBalance'] });
-      queryClient.invalidateQueries({ queryKey: ['walletTransactions'] });
-    },
-  });
-}
-
 export function useTransferToLocker() {
   const { actor } = useActor();
   const queryClient = useQueryClient();

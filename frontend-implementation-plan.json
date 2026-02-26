@@ -1,96 +1,28 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Add QR Code Scanner for Payments and Money Receiving",
+  "title": "Remove Add Funds feature from Wallet screen",
   "requirements": [
     {
-      "id": "REQ-14",
-      "summary": "Add QR code generation to Wallet screen for receiving payments",
+      "id": "REQ-18",
+      "summary": "Remove the 'Add Funds' / 'Receive Money' form section from the Wallet screen, including the collapsible form, trigger button, and related state variables, while keeping all other wallet features intact",
       "acceptanceCriteria": [
-        "The Wallet screen's 'Receive Money' section displays a QR code generated from the user's wallet identifier (principal ID or display name)",
-        "The QR code is visually prominent with a label such as 'Scan to Pay Me'",
-        "A 'Copy ID' or 'Share' button is shown below the QR code",
-        "The QR code renders correctly on mobile viewports (max-width 430px)"
+        "The Wallet screen no longer shows any 'Add Funds', 'Receive Money' form, or any input fields for entering an amount and sender label to add money.",
+        "No button or UI element triggers an 'add funds' form on the Wallet screen.",
+        "The addFundsToWallet mutation call is removed from the Wallet component.",
+        "Wallet balance card, Transfer to Locker section, QR code Receive modal, Scan & Pay scanner modal, and transaction history list are all still present and functional.",
+        "No TypeScript or build errors are introduced."
       ],
       "file_operations": [
         {
-          "path": "frontend/package.json",
-          "operation": "modify",
-          "description": "Add qrcode.react library dependency for client-side QR code generation"
-        },
-        {
           "path": "frontend/src/components/Wallet.tsx",
           "operation": "modify",
-          "description": "Add 'Receive Money' section with QR code display using qrcode.react. Generate QR code from user's principal ID or display name. Include a 'Scan to Pay Me' label, the rendered QR code component, and a 'Copy ID' button below the QR code. Ensure mobile-responsive layout (max-width 430px). Wire this into the existing Wallet component alongside the current balance display and transaction list."
-        }
-      ]
-    },
-    {
-      "id": "REQ-15",
-      "summary": "Add QR code scanner to Wallet screen for sending payments",
-      "acceptanceCriteria": [
-        "A 'Scan & Pay' button on the Wallet screen opens a full-screen camera QR scanner overlay",
-        "Successfully scanning a valid payment QR code closes the scanner and pre-fills the recipient field in a 'Send Money' form",
-        "The user can enter an amount and optional note before confirming the payment",
-        "On confirmation, the backend deducts the amount from the wallet balance and records the outgoing transaction with type 'sent', recipient label, timestamp, and note",
-        "If wallet balance is insufficient, an error toast is shown and no funds are deducted",
-        "Success and error toasts are shown for all send actions",
-        "The new transaction appears in the wallet transaction history immediately after sending"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/QRScannerModal.tsx",
-          "operation": "create",
-          "description": "Create a full-screen modal component for QR scanning. Use the qr-code/useQRScanner hook from the selected qr-code component. Display a video preview with videoRef and canvasRef from the hook. Include start/stop scanning controls, camera switch button (mobile only), error display, and scan result handling. When a QR code is successfully scanned, extract the recipient identifier and close the modal, passing the scanned data back to the parent component. Verify the qr-code component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/SendMoneyForm.tsx",
-          "operation": "create",
-          "description": "Create a form component for sending money with fields for recipient identifier (pre-fillable from QR scan), amount input, and optional note textarea. Include a confirm/send button that calls the sendFundsFromWallet backend function via a React Query mutation. Handle success and error responses with toast notifications. Display error toasts for insufficient funds or other errors. On success, show a success toast and invalidate wallet balance and transaction queries to refresh the UI."
-        },
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Add a 'Scan & Pay' button to the Wallet component. Wire it to open the QRScannerModal component. When the scanner returns a scanned recipient identifier, open or reveal the SendMoneyForm component with the recipient field pre-filled. Ensure the form and scanner modal integrate seamlessly into the existing Wallet layout alongside the balance display, receive section, and transaction list."
+          "description": "Remove the entire 'Add Funds' / 'Receive Money' collapsible form section including: (1) the state variable controlling the form visibility (e.g., showAddFunds or similar), (2) the CollapsibleTrigger button that opens the add funds form, (3) the CollapsibleContent wrapper containing the input fields for amount and sender label, (4) the submit handler that calls addFundsToWallet mutation, and (5) any imports related solely to the add funds form (e.g., useAddFundsToWallet if not used elsewhere). Ensure the Wallet balance card, Transfer to Locker section with its form, ReceiveMoneyModal (QR code), QRScannerModal (Scan & Pay), SendMoneyForm, and the grouped transaction history list remain untouched and fully functional."
         },
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Add a React Query mutation hook for sendFundsFromWallet that calls actor.sendFundsFromWallet(recipient, amount, note). Handle Result<WalletTransaction, SendFundsError> response. On success, invalidate wallet balance and wallet transactions queries to refresh the UI. Return the mutation object for use in SendMoneyForm."
-        }
-      ]
-    },
-    {
-      "id": "REQ-17",
-      "summary": "Redesign Wallet screen UI to feel like a modern peer-to-peer payment app",
-      "acceptanceCriteria": [
-        "Wallet balance is displayed prominently at the top in a styled gradient card",
-        "Three action buttons (Receive, Scan & Pay, Transfer to Locker) are shown in a horizontal icon-button row below the balance",
-        "Tapping 'Receive' expands or opens a modal showing the user's QR code and copyable payment ID",
-        "Tapping 'Scan & Pay' opens a camera scanner overlay",
-        "Transaction history uses distinct icons/colors for received (green), sent (red/orange), and locker-transfer (teal) entries",
-        "Layout is fully functional and visually polished on mobile viewports (max-width 430px)"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Redesign the Wallet component layout to match a modern peer-to-peer payment app aesthetic. Display wallet balance in a large gradient card at the top (similar to BalanceCard styling). Below the balance, add a horizontal row of three icon-based action buttons: 'Receive' (opens QR code display modal or expands inline section), 'Scan & Pay' (opens QRScannerModal), and 'Transfer to Locker' (existing transfer functionality). Update the transaction history section to use distinct color-coded icons: green for received transactions, red/orange for sent transactions, and teal for locker-transfer transactions. Ensure mobile-responsive layout (max-width 430px) with polished spacing, padding, and visual hierarchy."
-        },
-        {
-          "path": "frontend/src/components/ReceiveMoneyModal.tsx",
-          "operation": "create",
-          "description": "Create a modal or expandable section component for the 'Receive' action. Display the user's QR code generated from their principal ID or display name (using qrcode.react). Include a 'Scan to Pay Me' or 'My Payment QR' heading, the QR code, and a 'Copy ID' or 'Share' button below the QR code. Ensure the component is mobile-friendly and visually polished."
-        },
-        {
-          "path": "frontend/src/components/TransactionListItem.tsx",
-          "operation": "create",
-          "description": "Create a reusable transaction list item component that accepts a WalletTransaction and renders it with appropriate color-coded icons and labels. Use green icon/accent for transactionType 'received', red/orange for 'sent', and teal for 'locker_transfer'. Display the amount, recipientLabel (if present), note, and formatted timestamp. Ensure mobile-responsive styling."
-        },
-        {
-          "path": "frontend/src/components/Wallet.tsx",
-          "operation": "modify",
-          "description": "Integrate the new ReceiveMoneyModal and TransactionListItem components into the redesigned Wallet layout. Wire the 'Receive' button to open/toggle the ReceiveMoneyModal. Replace the current transaction list rendering with mapped TransactionListItem components for each transaction. Ensure all action buttons and modals are wired correctly and the layout is cohesive."
+          "description": "Remove the useAddFundsToWallet mutation hook (or equivalent mutation hook for adding funds to the wallet) since it is no longer called from the Wallet component. Keep all other query and mutation hooks (useGetWalletBalance, useTransferToLocker, useGetWalletTransactions, useSendFundsFromWallet, etc.) intact."
         }
       ]
     }
